@@ -10,13 +10,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
 
 var db *DB
 var agentsSelfregEnabled = false
+var taskResultSlots map[string]map[int]chan json.RawMessage
+var taskResultSlotsLock sync.Mutex
 
 func main() {
 	if len(os.Args) == 1 {
@@ -46,8 +50,11 @@ func main() {
 		}
 		defer db.Close()
 
+		taskResultSlots = make(map[string]map[int]chan json.RawMessage)
+
 		http.HandleFunc("/events", eventsHandler)
 		http.HandleFunc("/tasks", tasksHandler)
+		http.HandleFunc("/tasks_result", tasksResultHandler)
 		http.HandleFunc("/login", loginHandler)
 		http.HandleFunc("/logout", logoutHandler)
 		http.HandleFunc("/agents", agentsHandler)
@@ -129,6 +136,48 @@ func main() {
 	}
 }
 
+func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		if !checkAgentAuth(r.Header) {
+			writeError(w, http.StatusForbidden, "Authorization failure")
+			return
+		}
+		agentID := strings.Split(r.Header.Get("Authorization"), ":")[0]
+		taskIDStr := r.URL.Query().Get("id")
+		if taskIDStr == "" {
+			writeError(w, http.StatusBadRequest, "Missing task id")
+			return
+		}
+		taskID, err := strconv.Atoi(taskIDStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "Non-numeric task id")
+			return
+		}
+
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// TODO: More advanced input validation.
+		if !json.Valid(body) {
+			writeError(w, http.StatusBadRequest, "Invalid JSON passed in body")
+			return
+		}
+
+		agentSlots, prs := taskResultSlots[agentID]
+		if !prs {
+			return
+		}
+		if agentSlots[taskID] != nil {
+			agentSlots[taskID] <- json.RawMessage(body)
+		}
+	} else {
+		writeError(w, http.StatusMethodNotAllowed, "/tasks_result supports only POST")
+	}
+}
+
 func agentsSelfregHandler(w http.ResponseWriter, r *http.Request) {
 	if !checkAdminAuth(r.Header) {
 		writeError(w, http.StatusForbidden, "Authorization failure")
@@ -200,6 +249,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if !db.CheckAuth(user, r.URL.Query().Get("pass"), AcctAdmin) {
 		log.Println("Invalid login info submitted for", user, "from", r.RemoteAddr)
 		writeError(w, http.StatusForbidden, "Invalid credentials")
+		return
 	}
 
 	token, err := db.InitSession(user)
@@ -208,7 +258,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Initialized session for", user + "; token=" + token[:6] + "...")
+	log.Println("Initialized session for", user+"; token="+token[:6]+"...")
 	writeJson(w, map[string]interface{}{"error": false, "msg": "Logged in", "token": token})
 }
 
@@ -282,7 +332,6 @@ func acceptEvent(w http.ResponseWriter, r *http.Request) {
 	if err := db.LogEvent(agentID, buf); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 	}
-
 }
 
 func listEvents(w http.ResponseWriter, r *http.Request) {
@@ -307,6 +356,10 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Missing target parameter")
 		return
 	}
+	noWait := false
+	if r.URL.Query().Get("noWait") == "1" {
+		noWait = true
+	}
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -320,13 +373,42 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db.PushTask(target, buf); err != nil {
+	id, err := db.PushTask(target, buf)
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Println("Added task for", target, "from", strings.Split(r.Header.Get("Authorization"), ":")[0])
-	writeJson(w, map[string]interface{}{"error": false, "msg": "Task enqueued"})
+	log.Println("Added task", id, "for", target, "from", r.Header.Get("Authorization")[:6])
+	if noWait {
+		writeJson(w, map[string]interface{}{"error": false, "msg": "Task enqueued"})
+		return
+	}
+
+	waitTaskResult(w, target, id, r)
+}
+
+func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.Request) {
+	taskResultSlotsLock.Lock()
+	slots := taskResultSlots[agentID]
+	if slots == nil {
+		taskResultSlots[agentID] = make(map[int]chan json.RawMessage)
+		slots = taskResultSlots[agentID]
+	}
+
+	slots[taskID] = make(chan json.RawMessage, 1)
+	taskResultSlotsLock.Unlock()
+	select {
+	case <-time.After(26 * time.Second):
+		log.Println("Timed out while waiting for task", taskID, "result from", agentID)
+		writeJson(w, map[string]interface{}{"error": false, "result": nil})
+		taskResultSlotsLock.Lock()
+		delete(slots, taskID)
+		taskResultSlotsLock.Unlock()
+	case res := <-slots[taskID]:
+		log.Println("Forwarding task", taskID, "result from", agentID, "to", r.Header.Get("Authorization")[:6])
+		writeJson(w, map[string]interface{}{"error": false, "result": res})
+	}
 }
 
 func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration) {
@@ -335,7 +417,7 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	taskWaitCancel := make(chan bool, 1)
 	doneChan := make(chan bool, 1)
 
-	log.Println(agentID, "is watching for events")
+	log.Println(agentID, "is watching for tasks")
 
 	var blob []byte
 	var id int
@@ -354,7 +436,7 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		log.Println("Sending event to", agentID)
+		log.Println("Sending task", id, "to", agentID)
 		writeJson(w, map[string]interface{}{"error": false, "events": map[int]json.RawMessage{id: blob}})
 	}
 }

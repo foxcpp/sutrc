@@ -10,7 +10,9 @@ import (
 )
 
 const MaxEventLogSize = 512
+
 type AccountType int
+
 const (
 	AcctAdmin AccountType = 1
 	AcctAgent AccountType = 2
@@ -25,12 +27,12 @@ type DB struct {
 	// Account management
 	getUsrSalt        *sql.Stmt
 	checkUsrExistance *sql.Stmt
-	addAccount 		  *sql.Stmt
-	remAccount 		  *sql.Stmt
+	addAccount        *sql.Stmt
+	remAccount        *sql.Stmt
 
 	// Session management
-	initSession *sql.Stmt
-	killSession *sql.Stmt
+	initSession  *sql.Stmt
+	killSession  *sql.Stmt
 	checkSession *sql.Stmt
 
 	// Task queue
@@ -48,7 +50,7 @@ type DB struct {
 func OpenDB(path string) (*DB, error) {
 	db := new(DB)
 	var err error
-	db.d, err = sql.Open("sqlite3", "file:" + path + "?cache=shared&_journal=WAL&_busy_timeout=5000")
+	db.d, err = sql.Open("sqlite3", "file:"+path+"?cache=shared&_journal=WAL&_busy_timeout=5000")
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +168,7 @@ func (db *DB) LogEvent(agentID string, jsonObj json.RawMessage) error {
 		return err
 	}
 
-	if eventsCount + 1 > MaxEventLogSize && firstId.Valid {
+	if eventsCount+1 > MaxEventLogSize && firstId.Valid {
 		if _, err := tx.Stmt(db.delEvent).Exec(firstId.Int64); err != nil {
 			return err
 		}
@@ -178,7 +180,7 @@ func (db *DB) LogEvent(agentID string, jsonObj json.RawMessage) error {
 	return tx.Commit()
 }
 
-func (db *DB) ListLoggedEvents(agentID string) ([]json.RawMessage, error){
+func (db *DB) ListLoggedEvents(agentID string) ([]json.RawMessage, error) {
 	var res []json.RawMessage
 
 	rows, err := db.listEvents.Query(agentID)
@@ -197,15 +199,21 @@ func (db *DB) ListLoggedEvents(agentID string) ([]json.RawMessage, error){
 	return res, nil
 }
 
-func (db *DB) PushTask(agentID string, jsonObj json.RawMessage) error {
-	_, err := db.pushTask.Exec(agentID, jsonObj)
-	if err == nil {
-		select {
-		case db.popTaskWakeUp <- true:
-		default:
-		}
+func (db *DB) PushTask(agentID string, jsonObj json.RawMessage) (int, error) {
+	res, err := db.pushTask.Exec(agentID, jsonObj)
+	if err != nil {
+		return 0, err
 	}
-	return err
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	select {
+	case db.popTaskWakeUp <- true:
+	default:
+	}
+	return int(id), err
 }
 
 func (db *DB) PopTask(cancelChan chan bool, agentID string) (int, json.RawMessage, error) {

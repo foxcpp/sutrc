@@ -111,14 +111,18 @@ Get events from agent `AGENTID`.
 
 #### `POST /tasks?target=AGENTID`
 
-Enqueue task for agent `AGENTID`.
+**Longpooling endpoint. Timeout is 26 seconds.**
+
+Enqueue task for agent `AGENTID` and wait for result from agent.
 Pass event object in request body.
+
+Pass `noWait=1` to disable longpooling and just return instantly.
 
 **Response**
 ```json
 {
  "error": false,
- "msg": "Task enqueued"
+ "result": anything
 }
 ```
 
@@ -184,3 +188,11 @@ Pass event object in request body.
  "msg": "Event logged"
 }
 ```
+
+#### `POST /tasks_result?id=TASK_ID`
+
+Report task execution result back to server.
+Pass result JSON object in request body.
+
+**Response**
+Empty, unless error is happened.
