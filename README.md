@@ -111,7 +111,7 @@ Get events from agent `AGENTID`.
 
 #### `POST /tasks?target=AGENTID`
 
-**Longpooling endpoint. Timeout is 26 seconds.**
+**Longpooling endpoint. Timeout is 5 seconds.**
 
 Enqueue task for agent `AGENTID` and wait for result from agent.
 Pass event object in request body.

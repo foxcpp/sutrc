@@ -375,6 +375,10 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 
 	id, err := db.PushTask(target, buf)
 	if err != nil {
+		if err.Error() == "FOREIGN KEY constraint failed" {
+			writeError(w, http.StatusBadRequest, "Agent doesn't exists")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -399,7 +403,7 @@ func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.R
 	slots[taskID] = make(chan json.RawMessage, 1)
 	taskResultSlotsLock.Unlock()
 	select {
-	case <-time.After(26 * time.Second):
+	case <-time.After(5 * time.Second):
 		log.Println("Timed out while waiting for task", taskID, "result from", agentID)
 		writeJson(w, map[string]interface{}{"error": false, "result": nil})
 		taskResultSlotsLock.Lock()
