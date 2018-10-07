@@ -12,13 +12,14 @@ import (
 )
 
 type MetaTask struct {
-	id int
+	id   int
 	blob json.RawMessage
 }
 
 var taskResults map[string]map[int]chan json.RawMessage
 var tasks map[string]chan map[string]interface{}
 var nextTaskID int
+
 // Should be locked if any variables above (except channel I/O) are modified.
 var taskMetaLock sync.Mutex
 
@@ -94,7 +95,7 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 
 	task := map[string]interface{}{}
 	if err := json.Unmarshal(buf, &task); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid JSON: " + err.Error())
+		writeError(w, http.StatusBadRequest, "Invalid JSON: "+err.Error())
 		return
 	}
 
@@ -129,7 +130,12 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	tasks[target] <- task
+	select {
+	case tasks[target] <- task:
+	default:
+		writeError(w, http.StatusServiceUnavailable, "Task queue is overflowed. Check agent.")
+		return
+	}
 
 	log.Println("Added task", id, "for", target, "from", r.Header.Get("Authorization")[:6])
 	waitTaskResult(w, target, id, r, 5*time.Second)
