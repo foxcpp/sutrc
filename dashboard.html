@@ -57,7 +57,7 @@
                         <select class="form-control" id="send-task-type-select">
                             <option data-target="execute-command-form">Execute Command</option>
                             <option data-target="power-control-form">Power Control</option>
-                            <option data-target="kill-proc-form">Kill Process(es)</option>
+                            <option data-target="kill-proc-form">Kill Process</option>
                         </select>
                         <div class="send-task-type-form" id="execute-command-form">
                             <label for="send-task-command">Command:</label>
@@ -71,12 +71,10 @@
                             </select>
                         </div>
                         <div class="send-task-type-form" id="kill-proc-form" style="display: none">
-                            <label for="proc-select-option">Select processes to kill:</label>
-                            <select multiple class="form-control" id="proc-select-option">
+                            <label for="proc-select-option">Select process to kill:</label>
+                            <select class="form-control" id="proc-select-option">
                                 <!-- Populated dynamically by JS -->
-                            </select>   
-                            <label for="proc-select-option">Or type program file names to kill corresponding processes:</label>
-                            <input id="proc-names-option" class="form-control" type="text" placeholder="program.exe, program2.exe">
+                            </select>
                         </div>
                     </form>
                     <footer class="modal-footer">
@@ -186,20 +184,20 @@
                             groupsTotal.set(group, 0)
                         }
                         
+                        var disabledAttr = ""
                         var title = escapeHTML(val)
                         if (data.online[val]) {
                             groupsOnline.set(group, groupsOnline.get(group) + 1)
                             title = title + " (online)"
+                        } else {
+                            disabledAttr = "disabled"
                         }
                         groupsTotal.set(group, groupsTotal.get(group) + 1)
                         
                         $("#agents-group-" + group).append('\
                             <figure class="agent-entry">\
                                 <span class="agent-name clearfix">' + title + '</span>\
-                                <button type="button" data-role="logged-events" data-target="' + escapeHTML(val) + '" class="btn btn-outline-secondary agent-btn">\
-                                    Logged events\
-                                </button>\
-                                <button type="button" data-role="send-task" data-target="' + escapeHTML(val) + '" class="btn btn-outline-secondary agent-btn">\
+                                <button type="button" ' + disabledAttr + ' data-role="send-task" data-target="' + escapeHTML(val) + '" class="btn btn-outline-secondary agent-btn">\
                                     Send task\
                                 </button>\
                             </figure>')
@@ -240,22 +238,19 @@
                     }
                 }).done(function(data) {
                     $("#proc-select-option").children().remove()
-                    if (data.result == null || data.result == undefined || data.result.procs == undefined) {
+                    if (data == null || data == undefined || data.procs == undefined) {
                         $("#task-submit-error").alert("close")
-                        $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent. However, you can still type process name or PIDs in field below.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                        $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
                         return
                     }
                     
-                    data.result.procs.forEach(function(val){
+                    data.procs.forEach(function(val){
                         $("#proc-select-option").append('<option data-pid="' + val.id + '">' + val.id + ' - ' + val.name + '</option>')
                     })
                 }).fail(function(data) {
-                    console.log("fail")
-                    console.log(data.responseJSON)
-                    console.log(data.textStatus)
                     $("#proc-select-option").children().remove()
                     $("#task-submit-error").alert("close")
-                    $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent. However, you can still type process name or PIDs in field below.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                    $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
                 })
             }
             
@@ -297,9 +292,6 @@
                         updateSendTaskForm()
                         $("#send-task-modal").modal("show")
                     }
-                    if (event.currentTarget.dataset.role == "logged-events") {
-                        window.location = "events.html?agent=" + event.currentTarget.dataset.target
-                    }
                 })
                 $(".agents-group").on("show.bs.collapse", function(event) {
                     $(".agents-group-header").children(".fa-arrow-down").removeClass("fa-rotate-180")
@@ -322,19 +314,10 @@
                             cmd: $("#send-task-command").val()
                         }
                         break;
-                    case "Kill Process(es)":
+                    case "Kill Process":
                         payload = {
-                            type: "kill_procs",
-                            procs: [],
-                        }
-                        var selectedProcs = $("#proc-select-option")[0].selectedOptions
-                        for (var i = 0; i < selectedProcs.length; i++) {
-                            payload.procs.push(Number(selectedProcs[i].dataset.pid))
-                        }
-                        if ($("#proc-names-option").val() != "") {
-                            $("#proc-names-option").val().split(",").forEach(function(val){
-                                payload.procs.push(val.trim())
-                            })
+                            type: "execute_cmd",
+                            cmd: "taskkill /pid " + $("#proc-select-option")[0].selectedOptions[0].dataset.pid
                         }
                         break;
                     case "Power Control":
@@ -358,17 +341,12 @@
                     if (data.error) {
                         $("#result-status-code").text("Unknown")
                         $("#result-output").text("Error returned by server: " + data.msg)
-                    } else if (data.result == null) {
+                    } else if (Object.keys(data).length == 0) {
                         $("#result-status-code").text("Unknown")
                         $("#result-output").text("Timed out while waiting for agent response.")
                     } else {
-                        if (payload.type == "execute_cmd") {
-                            $("#result-status-code").text(data.result.status_code)
-                            $("#result-output").text(data.result.output)
-                        } else if (payload.type == "kill_procs") {
-                            $("#result-status-code").text("")
-                            $("#result-output").text("Killed: " + data.result.killed.join(", ") + "; Failed to kill: " + data.result.failed.join(", "))
-                        }
+                        $("#result-status-code").text(data.status_code)
+                        $("#result-output").text(data.output)
                     }
                     $("#result-modal").modal("show")
                     $("#send-task-submit").text("Send")
