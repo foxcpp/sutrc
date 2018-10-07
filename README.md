@@ -107,7 +107,7 @@ Generic schema for all errors:
 Non-error responses format varies depending on endpoint.
 HTTP status code is **always different from 200** if error is returned.
 
-### HTTP API reference.
+### HTTP API reference
 
 #### Session management
 
@@ -122,10 +122,13 @@ Initiate session for specified user. Result contains
 }
 ```
 
+**Doesn't works for agent accounts.**
 
 ##### `POST /logout`
 Pass token returned by `/login` in `Authorization` header to terminate
 session.
+
+**Doesn't works for agent accounts.**
 
 #### Admin-level
 
@@ -162,10 +165,7 @@ Pass event object in request body.
 
 **Response**
 ```json
-{
- "error": false,
- "result": anything
-}
+result object
 ```
 
 #### Agents self-registration
@@ -219,9 +219,9 @@ request body.
 
 ### Pre-defined task types
 
-#### Shell Command Execution
+#### Shell command execution
 
-JSON type string: `"execute_cmd"`.
+**JSON type string**: `"execute_cmd"`.
 
 Agent should execute shell command passed in `"cmd"` field of task JSON object and return
 result containing `"status_code"` and `"output"` with process status code (see OS documentation) and
@@ -243,6 +243,38 @@ Task result object:
 }
 ```
 
+#### Task list query
+
+**JSON type string:** `"proclist"`
+
+Agent should return list of OS processes running on it's machine as JSON array in `"procs"` field 
+of response.
+
+Each entry should have `"id"` as numeric process identifier and `"name"` as a human-friendly process
+name (usually program binary name).
+
+**Example:**
+Task object:
+```
+{
+    "type": "proclist"
+}
+```
+Task result object:
+```
+{
+    "procs": [
+        {
+            "id": 7,
+            "name": "chrome.exe"
+        },
+        {
+            "id": 172,
+            "name": "hl2.exe"
+        }
+    ]
+}
+```
 
 ### Server configuration
 
