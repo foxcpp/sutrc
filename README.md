@@ -219,6 +219,31 @@ request body.
 
 ### Pre-defined task types
 
+#### Shell Command Execution
+
+JSON type string: `"execute_cmd"`.
+
+Agent should execute shell command passed in `"cmd"` field of task JSON object and return
+result containing `"status_code"` and `"output"` with process status code (see OS documentation) and
+copy of stdout (it's allowed to trim it if it exceeds over 5 KB in size).
+
+**Example:**
+Task object:
+```
+{
+    "type": "execute_cmd",
+    "cmd": "echo hello"
+}
+```
+Task result object:
+```
+{
+    "status_code": 0,
+    "output": "hello"
+}
+```
+
+
 ### Server configuration
 
 Just compile it using regular Go tools (make sure you have C compiler
