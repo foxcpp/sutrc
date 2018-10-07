@@ -1,0 +1,56 @@
+body {
+    background-color: #eee;
+}
+hr {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+figure {
+    margin: 0 0;
+}
+.navbar-light {
+    background-color: #fff;
+}
+.btn:hover, .btn:focus, .form-control:hover, .form-control:focus, .form-control:clicked {
+    box-shadow: none !important;
+}
+.btn, .modal-content, .form-control {
+    border-radius: 0 !important;
+}
+.btn-transparent {
+    background: none;
+}
+.btn-transparent:hover {
+    background: #e2e6ea;
+}
+.btn-transparent:focus {
+    box-shadow: none;
+}
+.container-fluid {
+    padding-top: 25px;
+}
+.styleless-link, .styleless-link:visited, .styleless-link:focus, .styleless-link:active {
+    text-decoration: none;
+    border: none;
+    outline: none;
+    color: #000;
+    transition: color 0.15s;
+}
+.styleless-link:hover {
+    text-decoration: none;
+    color: #555;
+    transition: color 0.15s;
+}
+.twoheader {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+}
+.twoheader-left {
+    display: inline-block;
+}
+.twoheader-right {
+    display: inline-block;
+    margin-left: auto;
+
+}
