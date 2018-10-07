@@ -58,7 +58,7 @@ func serverSubcommand() {
 
 	onlineAgents = make(map[string]bool)
 	taskResults = make(map[string]map[int]chan json.RawMessage)
-	tasks = make(map[string]chan MetaTask)
+	tasks = make(map[string]chan map[string]interface{})
 
 	http.HandleFunc("/tasks", tasksHandler)
 	http.HandleFunc("/tasks_result", tasksResultHandler)
