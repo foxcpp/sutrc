@@ -4,12 +4,9 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"golang.org/x/crypto/scrypt"
 	"log"
 )
-
-const MaxEventLogSize = 512
 
 type AccountType int
 
@@ -20,7 +17,6 @@ const (
 
 type DB struct {
 	d             *sql.DB
-	popTaskWakeUp chan bool
 
 	listAgents *sql.Stmt
 
@@ -34,17 +30,6 @@ type DB struct {
 	initSession  *sql.Stmt
 	killSession  *sql.Stmt
 	checkSession *sql.Stmt
-
-	// Task queue
-	pushTask     *sql.Stmt
-	getFirstTask *sql.Stmt
-	delTask      *sql.Stmt
-
-	// Events log
-	pushEvent          *sql.Stmt
-	countAndFirstEvent *sql.Stmt
-	delEvent           *sql.Stmt
-	listEvents         *sql.Stmt
 }
 
 func OpenDB(path string) (*DB, error) {
@@ -54,7 +39,6 @@ func OpenDB(path string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.popTaskWakeUp = make(chan bool)
 
 	if err := db.initSchema(); err != nil {
 		panic(err)
@@ -155,97 +139,6 @@ func (db *DB) CheckSession(sid string) bool {
 	return res == 1
 }
 
-func (db *DB) LogEvent(agentID string, jsonObj json.RawMessage) error {
-	tx, err := db.d.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	row := tx.Stmt(db.countAndFirstEvent).QueryRow(agentID)
-	firstId, eventsCount := sql.NullInt64{}, 0
-	if err := row.Scan(&firstId, &eventsCount); err != nil {
-		return err
-	}
-
-	if eventsCount+1 > MaxEventLogSize && firstId.Valid {
-		if _, err := tx.Stmt(db.delEvent).Exec(firstId.Int64); err != nil {
-			return err
-		}
-	}
-
-	if _, err := tx.Stmt(db.pushEvent).Exec(agentID, []byte(jsonObj)); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
-func (db *DB) ListLoggedEvents(agentID string) ([]json.RawMessage, error) {
-	var res []json.RawMessage
-
-	rows, err := db.listEvents.Query(agentID)
-	if err != nil {
-		return nil, err
-	}
-
-	for rows.Next() {
-		jsonBlob := []byte{}
-		if err := rows.Scan(&jsonBlob); err != nil {
-			return nil, err
-		}
-		res = append(res, jsonBlob)
-	}
-
-	return res, nil
-}
-
-func (db *DB) PushTask(agentID string, jsonObj json.RawMessage) (int, error) {
-	res, err := db.pushTask.Exec(agentID, jsonObj)
-	if err != nil {
-		return 0, err
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	select {
-	case db.popTaskWakeUp <- true:
-	default:
-	}
-	return int(id), err
-}
-
-func (db *DB) PopTask(cancelChan chan bool, agentID string) (int, json.RawMessage, error) {
-	tx, err := db.d.Begin()
-	if err != nil {
-		return 0, nil, err
-	}
-
-	row := tx.Stmt(db.getFirstTask).QueryRow(agentID)
-	id, blob := 0, []byte{}
-	err = row.Scan(&id, &blob)
-	if err == nil {
-		if _, err := tx.Stmt(db.delTask).Exec(id); err != nil {
-			return 0, nil, err
-		}
-
-		return id, json.RawMessage(blob), tx.Commit()
-	}
-	if err != sql.ErrNoRows {
-		return 0, nil, err
-	}
-	if err := tx.Rollback(); err != nil {
-		return 0, nil, err
-	}
-
-	select {
-	case <-db.popTaskWakeUp:
-		return db.PopTask(cancelChan, agentID)
-	case <-cancelChan:
-		return 0, nil, err
-	}
-}
 
 func (db *DB) initSchema() error {
 	db.d.Exec(`PRAGMA foreign_keys = ON`)
@@ -268,21 +161,6 @@ func (db *DB) initSchema() error {
 	_, err = db.d.Exec(`CREATE TABLE IF NOT EXISTS sessions (
 		sessionId TEXT PRIMARY KEY NOT NULL,
 		user TEXT NOT NULL REFERENCES authInfo(user) ON DELETE CASCADE
-	)`)
-
-	_, err = db.d.Exec(`CREATE TABLE IF NOT EXISTS tasks (
-		id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-		target TEXT NOT NULL REFERENCES authInfo(user) ON DELETE CASCADE,
-		jsonBlob BLOB NOT NULL
-	)`)
-	if err != nil {
-		return err
-	}
-
-	_, err = db.d.Exec(`CREATE TABLE IF NOT EXISTS events (
-		id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-		source TEXT NOT NULL REFERENCES authInfo(user) ON DELETE CASCADE,
-		jsonBlob BLOB NOT NULL
 	)`)
 	return err
 }
@@ -321,36 +199,6 @@ func (db *DB) initStmts() error {
 		return err
 	}
 	db.checkSession, err = db.d.Prepare(`SELECT COUNT() FROM sessions WHERE sessionId = ?`)
-	if err != nil {
-		return err
-	}
-
-	db.pushTask, err = db.d.Prepare(`INSERT INTO tasks(target, jsonBlob) VALUES (?, ?)`)
-	if err != nil {
-		return err
-	}
-	db.getFirstTask, err = db.d.Prepare(`SELECT id, jsonBlob FROM tasks WHERE id = (SELECT MIN(id) FROM tasks WHERE target = ?)`)
-	if err != nil {
-		return err
-	}
-	db.delTask, err = db.d.Prepare(`DELETE FROM tasks WHERE id = ?`)
-	if err != nil {
-		return err
-	}
-
-	db.pushEvent, err = db.d.Prepare(`INSERT INTO events(source, jsonBlob) VALUES (?, ?)`)
-	if err != nil {
-		return err
-	}
-	db.countAndFirstEvent, err = db.d.Prepare(`SELECT MIN(id), COUNT() FROM events WHERE source = ?`)
-	if err != nil {
-		return err
-	}
-	db.delEvent, err = db.d.Prepare(`DELETE FROM events WHERE id = ?`)
-	if err != nil {
-		return err
-	}
-	db.listEvents, err = db.d.Prepare(`SELECT id, jsonBlob FROM events WHERE source = ?`)
 	if err != nil {
 		return err
 	}

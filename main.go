@@ -1,26 +1,20 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
-	"sync"
 	"syscall"
-	"time"
 )
 
 var db *DB
 var agentsSelfregEnabled = false
-var taskResultSlots map[string]map[int]chan json.RawMessage
-var taskResultSlotsLock sync.Mutex
+var onlineAgents map[string]bool
 
 func main() {
 	if len(os.Args) == 1 {
@@ -36,146 +30,54 @@ func main() {
 	subCmd := os.Args[1]
 	switch subCmd {
 	case "server":
-		if len(os.Args) != 4 {
-			fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "server PORT DBFILE")
-			os.Exit(1)
-		}
-		port := os.Args[2]
-		DBFile := os.Args[3]
-
-		var err error
-		db, err = OpenDB(DBFile)
-		if err != nil {
-			log.Fatalln("Failed to open DB:", err)
-		}
-		defer db.Close()
-
-		taskResultSlots = make(map[string]map[int]chan json.RawMessage)
-
-		http.HandleFunc("/events", eventsHandler)
-		http.HandleFunc("/tasks", tasksHandler)
-		http.HandleFunc("/tasks_result", tasksResultHandler)
-		http.HandleFunc("/login", loginHandler)
-		http.HandleFunc("/logout", logoutHandler)
-		http.HandleFunc("/agents", agentsHandler)
-		http.HandleFunc("/agents_selfreg", agentsSelfregHandler)
-
-		go func() {
-			log.Println("Listening on :" + port)
-			log.Fatalln(http.ListenAndServe(":"+port, nil))
-		}()
-
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
-		<-sig
+		serverSubcommand()
 	case "addaccount":
-		if len(os.Args) != 5 {
-			fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "addaccount DBFILE NAME TYPE")
-			os.Exit(1)
-		}
-
-		DBFile := os.Args[2]
-		name := os.Args[3]
-		type_ := AccountType(0)
-		switch os.Args[4] {
-		case "agent":
-			type_ = AcctAgent
-		case "admin":
-			type_ = AcctAdmin
-		default:
-			fmt.Fprintln(os.Stderr, "Invalid type. Use either 'admin' or 'agent'.")
-			os.Exit(1)
-		}
-
-		// TODO: Hide entered password from console.
-		fmt.Print("Enter password for account: ")
-		passIn := bufio.NewScanner(os.Stdin)
-		if !passIn.Scan() {
-			log.Fatalln(passIn.Err())
-		}
-		pass := passIn.Text()
-
-		db, err := OpenDB(DBFile)
-		if err != nil {
-			log.Fatalln("Failed to open DB:", err)
-		}
-		defer db.Close()
-
-		err = db.AddAccount(name, pass, type_)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to add account:", err)
-			os.Exit(1)
-		} else {
-			fmt.Fprintln(os.Stderr, "OK.")
-		}
+		addAccountSubcommand()
 	case "remove":
-		if len(os.Args) != 4 {
-			fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "remove DBFILE NAME")
-			os.Exit(1)
-		}
-
-		DBFile := os.Args[2]
-		name := os.Args[3]
-
-		db, err := OpenDB(DBFile)
-		if err != nil {
-			log.Fatalln("Failed to open DB:", err)
-		}
-		defer db.Close()
-
-		err = db.RemAccount(name)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Failed to remove account:", err)
-			os.Exit(1)
-		} else {
-			fmt.Fprintln(os.Stderr, "OK.")
-		}
+		removeAccountSubcommand()
 	default:
 		fmt.Fprintln(os.Stderr, "Unknown subcommand.")
 		os.Exit(1)
 	}
 }
 
-func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		if !checkAgentAuth(r.Header) {
-			writeError(w, http.StatusForbidden, "Authorization failure")
-			return
-		}
-		agentID := strings.Split(r.Header.Get("Authorization"), ":")[0]
-		taskIDStr := r.URL.Query().Get("id")
-		if taskIDStr == "" {
-			writeError(w, http.StatusBadRequest, "Missing task id")
-			return
-		}
-		taskID, err := strconv.Atoi(taskIDStr)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "Non-numeric task id")
-			return
-		}
-
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		// TODO: More advanced input validation.
-		if !json.Valid(body) {
-			writeError(w, http.StatusBadRequest, "Invalid JSON passed in body")
-			return
-		}
-
-		agentSlots, prs := taskResultSlots[agentID]
-		if !prs {
-			return
-		}
-		if agentSlots[taskID] != nil {
-			agentSlots[taskID] <- json.RawMessage(body)
-		}
-	} else {
-		writeError(w, http.StatusMethodNotAllowed, "/tasks_result supports only POST")
+func serverSubcommand() {
+	if len(os.Args) != 4 {
+		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "server PORT DBFILE")
+		os.Exit(1)
 	}
+	port := os.Args[2]
+	DBFile := os.Args[3]
+
+	var err error
+	db, err = OpenDB(DBFile)
+	if err != nil {
+		log.Fatalln("Failed to open DB:", err)
+	}
+	defer db.Close()
+
+	onlineAgents = make(map[string]bool)
+	taskResults = make(map[string]map[int]chan json.RawMessage)
+	tasks = make(map[string]chan MetaTask)
+
+	http.HandleFunc("/tasks", tasksHandler)
+	http.HandleFunc("/tasks_result", tasksResultHandler)
+	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/logout", logoutHandler)
+	http.HandleFunc("/agents", agentsHandler)
+	http.HandleFunc("/agents_selfreg", agentsSelfregHandler)
+
+	go func() {
+		log.Println("Listening on :" + port)
+		if err := http.ListenAndServe(":"+port, nil); err != nil {
+			log.Fatalln(err)
+		}
+	}()
+
+	// Handle Ctrl-C and stuff gracefully.
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
+	<-sig
 }
 
 func agentsSelfregHandler(w http.ResponseWriter, r *http.Request) {
@@ -236,7 +138,12 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		writeJson(w, map[string]interface{}{"error": false, "agents": agents})
+		onlineAgentsL := make(map[string]bool)
+		for _, agent := range agents {
+			onlineAgentsL[agent] = onlineAgents[agent]
+		}
+
+		writeJson(w, map[string]interface{}{"error": false, "agents": agents, "online": onlineAgentsL})
 	} else {
 		writeError(w, http.StatusMethodNotAllowed, "/agents only supports POST and GET")
 	}
@@ -271,178 +178,6 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Killed session with token=" + r.Header.Get("Authorization")[:6] + "...")
 	db.KillSession(r.Header.Get("Authorization"))
 	writeJson(w, map[string]interface{}{"error": false, "msg": "Logged out"})
-}
-
-func tasksHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		if !checkAdminAuth(r.Header) {
-			writeError(w, http.StatusForbidden, "Authorization failure")
-			return
-		}
-
-		acceptTask(w, r)
-	} else if r.Method == http.MethodGet {
-		if !checkAgentAuth(r.Header) {
-			writeError(w, http.StatusForbidden, "Authorization failure")
-			return
-		}
-
-		tasksLongpool(w, r, time.Second*26)
-	} else {
-		writeError(w, http.StatusBadRequest, "/tasks endpoint supports only GET and POST")
-	}
-}
-
-func eventsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		if !checkAdminAuth(r.Header) {
-			writeError(w, http.StatusForbidden, "Authorization failure")
-			return
-		}
-
-		listEvents(w, r)
-	} else if r.Method == http.MethodPost {
-		if !checkAgentAuth(r.Header) {
-			writeError(w, http.StatusForbidden, "Authorization failure")
-			return
-		}
-
-		acceptEvent(w, r)
-	} else {
-		writeError(w, http.StatusBadRequest, "/events endpoint supports only GET and POST")
-	}
-}
-
-func acceptEvent(w http.ResponseWriter, r *http.Request) {
-	agentID := strings.Split(r.Header.Get("Authorization"), ":")[0]
-
-	buf, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// TODO: More advanced input validation.
-	if !json.Valid(buf) {
-		writeError(w, http.StatusBadRequest, "Invalid JSON")
-		return
-	}
-
-	log.Println("Accepted event from", agentID)
-	if err := db.LogEvent(agentID, buf); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-	}
-}
-
-func listEvents(w http.ResponseWriter, r *http.Request) {
-	agentID := r.URL.Query().Get("agent")
-	if agentID == "" {
-		writeError(w, http.StatusBadRequest, "Missing agent parameter")
-		return
-	}
-
-	events, err := db.ListLoggedEvents(agentID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	writeJson(w, map[string]interface{}{"error": false, "events": events, "max_size": MaxEventLogSize})
-}
-
-func acceptTask(w http.ResponseWriter, r *http.Request) {
-	target := r.URL.Query().Get("target")
-	if target == "" {
-		writeError(w, http.StatusBadRequest, "Missing target parameter")
-		return
-	}
-	noWait := false
-	if r.URL.Query().Get("noWait") == "1" {
-		noWait = true
-	}
-
-	buf, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	// TODO: More advanced input validation.
-	if !json.Valid(buf) {
-		writeError(w, http.StatusBadRequest, "Invalid JSON")
-		return
-	}
-
-	id, err := db.PushTask(target, buf)
-	if err != nil {
-		if err.Error() == "FOREIGN KEY constraint failed" {
-			writeError(w, http.StatusBadRequest, "Agent doesn't exists")
-			return
-		}
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	log.Println("Added task", id, "for", target, "from", r.Header.Get("Authorization")[:6])
-	if noWait {
-		writeJson(w, map[string]interface{}{"error": false, "msg": "Task enqueued"})
-		return
-	}
-
-	waitTaskResult(w, target, id, r)
-}
-
-func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.Request) {
-	taskResultSlotsLock.Lock()
-	slots := taskResultSlots[agentID]
-	if slots == nil {
-		taskResultSlots[agentID] = make(map[int]chan json.RawMessage)
-		slots = taskResultSlots[agentID]
-	}
-
-	slots[taskID] = make(chan json.RawMessage, 1)
-	taskResultSlotsLock.Unlock()
-	select {
-	case <-time.After(5 * time.Second):
-		log.Println("Timed out while waiting for task", taskID, "result from", agentID)
-		writeJson(w, map[string]interface{}{"error": false, "result": nil})
-		taskResultSlotsLock.Lock()
-		delete(slots, taskID)
-		taskResultSlotsLock.Unlock()
-	case res := <-slots[taskID]:
-		log.Println("Forwarding task", taskID, "result from", agentID, "to", r.Header.Get("Authorization")[:6])
-		writeJson(w, map[string]interface{}{"error": false, "result": res})
-	}
-}
-
-func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration) {
-	agentID := strings.Split(r.Header.Get("Authorization"), ":")[0]
-
-	taskWaitCancel := make(chan bool, 1)
-	doneChan := make(chan bool, 1)
-
-	log.Println(agentID, "is watching for tasks")
-
-	var blob []byte
-	var id int
-	var err error
-	go func() {
-		id, blob, err = db.PopTask(taskWaitCancel, agentID)
-		doneChan <- true
-	}()
-
-	select {
-	case <-time.After(timeout):
-		taskWaitCancel <- true
-		writeJson(w, map[string]interface{}{"error": false, "events": []interface{}{}})
-	case <-doneChan:
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		log.Println("Sending task", id, "to", agentID)
-		writeJson(w, map[string]interface{}{"error": false, "events": map[int]json.RawMessage{id: blob}})
-	}
 }
 
 func writeJson(w http.ResponseWriter, in interface{}) {
