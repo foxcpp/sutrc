@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"golang.org/x/crypto/scrypt"
 	"log"
+	"sync"
 )
 
 type AccountType int
@@ -30,6 +31,10 @@ type DB struct {
 	initSession  *sql.Stmt
 	killSession  *sql.Stmt
 	checkSession *sql.Stmt
+
+	// Used to reduce scrypt invocations count and thus
+	// resist DoS'ing and improve agents performance.
+	credsCache sync.Map
 }
 
 func OpenDB(path string) (*DB, error) {
@@ -74,6 +79,11 @@ func (db *DB) ListAgents() ([]string, error) {
 }
 
 func (db *DB) CheckAuth(user, pass string, t AccountType) bool {
+	cachedPass, ok := db.credsCache.Load(user)
+	if ok {
+		return cachedPass == pass
+	}
+
 	row := db.getUsrSalt.QueryRow(user)
 	salt := []byte{}
 	if err := row.Scan(&salt); err != nil {
@@ -91,7 +101,11 @@ func (db *DB) CheckAuth(user, pass string, t AccountType) bool {
 	if err := row.Scan(&res); err != nil {
 		return false
 	}
-	return res == 1
+	success := res == 1
+	if success {
+		db.credsCache.Store(user, pass)
+	}
+	return success
 }
 
 func (db *DB) AddAccount(user string, pass string, acctType AccountType) error {

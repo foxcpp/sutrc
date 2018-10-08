@@ -11,16 +11,11 @@ import (
 	"time"
 )
 
-type MetaTask struct {
-	id   int
-	blob json.RawMessage
-}
-
 var taskResults map[string]map[int]chan json.RawMessage
 var tasks map[string]chan map[string]interface{}
 var nextTaskID int
 
-// Should be locked if any variables above (except channel I/O) are modified.
+// Should be locked if any variables above (except channel I/O) are accessed.
 var taskMetaLock sync.Mutex
 
 func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +42,9 @@ func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// taskResults[agentID] is created on task submit if it doesn't exists.
+		taskMetaLock.Lock()
 		c := taskResults[agentID][id]
+		taskMetaLock.Unlock()
 		if c == nil {
 			// If channel doesn't exists - nobody is waiting for task result. Just drop it.
 			return
@@ -122,6 +119,8 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare storage for result.
 	taskResults[target][id] = make(chan json.RawMessage)
+
+	tasksChan := tasks[target]
 	taskMetaLock.Unlock()
 
 	task["id"] = id
@@ -130,8 +129,9 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	select {
-	case tasks[target] <- task:
+	case tasksChan <- task:
 	default:
 		writeError(w, http.StatusServiceUnavailable, "Task queue is overflowed. Check agent.")
 		return
@@ -142,6 +142,9 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.Request, timeout time.Duration) {
+	taskMetaLock.Lock()
+	taskResChan := taskResults[agentID][taskID]
+	taskMetaLock.Unlock()
 	select {
 	case <-time.After(timeout):
 		log.Println("Timed out while waiting for task", taskID, "result from", agentID)
@@ -149,7 +152,7 @@ func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.R
 		taskMetaLock.Lock()
 		delete(taskResults[agentID], taskID)
 		taskMetaLock.Unlock()
-	case res := <-taskResults[agentID][taskID]:
+	case res := <-taskResChan:
 		resJson := make(map[string]interface{})
 		json.Unmarshal(res, &resJson) // this will not fail because res must be valid JSON.
 		resJson["error"] = false
@@ -181,11 +184,15 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 
 	log.Println(agentID, "is watching for tasks")
 
+	taskMetaLock.Lock()
+	tasksChan := tasks[agentID]
+	taskMetaLock.Unlock()
+
 	select {
 	case <-time.After(timeout):
 		writeJson(w, map[string]interface{}{})
 		onlineAgents[agentID] = false
-	case task := <-tasks[agentID]:
+	case task := <-tasksChan:
 		log.Println("Sending task", task["id"].(int), "to", agentID)
 		writeJson(w, task)
 		onlineAgents[agentID] = false

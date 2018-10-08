@@ -49,7 +49,7 @@ func serverSubcommand() {
 	port := os.Args[2]
 	DBFile := os.Args[3]
 
-	var err error
+	//var err error
 	db, err = OpenDB(DBFile)
 	if err != nil {
 		log.Fatalln("Failed to open DB:", err)
@@ -61,7 +61,7 @@ func serverSubcommand() {
 	tasks = make(map[string]chan map[string]interface{})
 
 	http.HandleFunc("/tasks", tasksHandler)
-	http.HandleFunc("/tasks_result", tasksResultHandler)
+	http.HandleFunc("/task_result", tasksResultHandler)
 	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/logout", logoutHandler)
 	http.HandleFunc("/agents", agentsHandler)
