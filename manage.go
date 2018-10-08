@@ -23,7 +23,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/denisbrodbeck/machineid"
 	"golang.org/x/sys/windows/svc"
@@ -147,6 +146,57 @@ func exePath() (string, error) {
 }
 
 func installService(name, desc, id string) error {
+	// Generating a fingerprint for this machine
+	// ID parameter is passed with install command
+	mid, err := machineid.ProtectedID(id)
+	if err != nil {
+		return fmt.Errorf("failed generating machine ID: %s", err)
+	}
+	d1 := []byte(id + " " + mid)
+	err = ioutil.WriteFile("C:\\Windows\\dutpc.key", d1, 0640)
+	if err != nil {
+		return err
+	}
+
+	// Register this computer on the central server
+	midSplit := strings.Split(mid,"-")
+	numID, err := strconv.Atoi(midSplit[1])
+	if err != nil {
+		log.Fatalln("Invalid ID:", err)
+	}
+	room, err := strconv.Atoi(midSplit[0])
+	if err != nil {
+		log.Fatalln("Invalid ID:", err)
+	}
+	d1 = append(d1, byte(' '))
+	d1 = append(d1, byte(numID))
+	d1 = append(d1, byte(' '))
+	d1 = append(d1, byte(room))
+
+	client := &http.Client{
+		Timeout: 26,
+	}
+	res, err := client.Get(baseURL + "/agent_selfreg")
+	if err != nil {
+		log.Fatalln("Cannot contact server to perform self-registration:", err)
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Fatalln("Failed to read server response to GET request:", err)
+	}
+	if string(body) != "1" {
+		log.Fatalln("Server does not accepts new agents right now.")
+	}
+	req, err := http.NewRequest("POST", baseURL + "/agents?user=" + id + "&pass=" + mid, nil)
+	if err != nil {
+		log.Fatalln("Failed to construct POST request:", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		// TODO: process return better
+		log.Fatalln("Server is unable to perform request:", err)
+	}
+
 	exepath, err := exePath()
 	if err != nil {
 		return err
@@ -170,45 +220,6 @@ func installService(name, desc, id string) error {
 	if err != nil {
 		s.Delete()
 		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
-	}
-
-	// Generating a fingerprint for this machine
-	// ID parameter is passed with install command
-	mid, err := machineid.ProtectedID(id)
-	if err != nil {
-		return fmt.Errorf("failed generating machine ID: %s", err)
-	}
-	d1 := []byte(mid)
-	err = ioutil.WriteFile("C:\\Windows\\dutpc.key", d1, 0640)
-	if err != nil {
-		return err
-	}
-
-	// Register this computer on the central server
-	midSplit := strings.Split(mid,"-")
-	numID, err := strconv.Atoi(midSplit[1])
-	if err != nil {
-		log.Fatalln("Invalid ID:", err)
-	}
-	d1 = append(d1, byte(' '))
-	d1 = append(d1, byte(numID))
-
-	client := &http.Client{
-		Timeout: 26,
-	}
-	req, err := http.NewRequest("POST", eventURL, bytes.NewReader(d1))
-	if err != nil {
-		log.Fatalln("Failed to construct POST request:", err)
-	}
-	req.Header.Add("Action:", "REGISTER")
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatalln("Server is unable to reply:", err)
-	}
-
-	result := resp.Header.Get("Result")
-	if result != "SUCCESS" {
-		log.Fatalln("Server denied registration")
 	}
 
 	return nil
@@ -245,7 +256,8 @@ func (m *dutService) Execute(args []string, r <-chan svc.ChangeRequest, changes 
 		elog.Error(1, authKeyErr + " " + err.Error())
 		log.Fatalln(authKeyErr, err)
 	}
-	go longPoll(string(data))
+	mid := strings.Split(string(data), " ")
+	go longPoll(mid[0], mid[1])
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	elog.Info(1, "")
 
