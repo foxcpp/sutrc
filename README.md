@@ -217,7 +217,7 @@ request timed out (agent should just retry in this case).
 }
 ```
 
-#### `POST /tasks_result?id=TASK_ID`
+#### `POST /task_result?id=TASK_ID`
 
 Report task execution result back to server.
 `TASK_ID` - ID of corresponding task. Result object should be passed in
