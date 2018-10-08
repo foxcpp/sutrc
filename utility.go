@@ -9,7 +9,7 @@ import (
 
 func removeAccountSubcommand() {
 	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "remove DBFILE NAME")
+		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "delaccount DBFILE NAME")
 		os.Exit(1)
 	}
 	DBFile := os.Args[2]

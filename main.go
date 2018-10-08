@@ -22,7 +22,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "\tLaunch server on PORT using DBFILE.")
 		fmt.Fprintln(os.Stderr, os.Args[0], "addaccount DBFILE NAME TYPE")
 		fmt.Fprintln(os.Stderr, "\tAdd client NAME as TYPE to DBFILE. Password will be readen from stdin. Type can be either 'agent' or 'admin'.")
-		fmt.Fprintln(os.Stderr, os.Args[0], "remove DBFILE NAME")
+		fmt.Fprintln(os.Stderr, os.Args[0], "delaccount DBFILE NAME")
 		fmt.Fprintln(os.Stderr, "\tRemove client NAME from DBFILE.")
 		return
 	}
@@ -33,7 +33,7 @@ func main() {
 		serverSubcommand()
 	case "addaccount":
 		addAccountSubcommand()
-	case "remove":
+	case "delaccount":
 		removeAccountSubcommand()
 	default:
 		fmt.Fprintln(os.Stderr, "Unknown subcommand.")
@@ -50,7 +50,7 @@ func serverSubcommand() {
 	DBFile := os.Args[3]
 
 	//var err error
-	db, err = OpenDB(DBFile)
+	db, err := OpenDB(DBFile)
 	if err != nil {
 		log.Fatalln("Failed to open DB:", err)
 	}
