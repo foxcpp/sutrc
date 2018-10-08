@@ -17,7 +17,7 @@ const (
 )
 
 type DB struct {
-	d             *sql.DB
+	d *sql.DB
 
 	listAgents *sql.Stmt
 
@@ -153,7 +153,6 @@ func (db *DB) CheckSession(sid string) bool {
 	return res == 1
 }
 
-
 func (db *DB) initSchema() error {
 	db.d.Exec(`PRAGMA foreign_keys = ON`)
 	db.d.Exec(`PRAGMA auto_vacuum = INCREMENTAL`)
@@ -195,7 +194,12 @@ func (db *DB) initStmts() error {
 	if err != nil {
 		return err
 	}
-	db.addAccount, err = db.d.Prepare(`INSERT INTO authInfo VALUES (?, ?, ?, ?)`)
+	db.addAccount, err = db.d.Prepare(`
+		INSERT INTO authInfo VALUES (?, ?, ?, ?)
+		ON CONFLICT(user) DO UPDATE SET
+			salt = excluded.salt,
+			hashedPass = excluded.hashedPass
+		WHERE type = excluded.type`)
 	if err != nil {
 		return err
 	}

@@ -178,6 +178,12 @@ accounts for themselves, making mass deployment a lot easier.
 Called by client to create new agent account.
 Works only if `GET /agents_selfreg` returns 1.
 
+You don't need to supply `Authorization` header.
+
+You can replace other's agent (or your own if you want to change password)
+accounts but can't replace admin accounts using this endpoint, in this
+case your attempt will be ignored without error.
+
 ##### `POST /agent_selfreg?enabled=1`
 
 Allow previous endpoint to be used. `enabled=0` undoes
@@ -188,7 +194,7 @@ effect of previous request with `enabled=1`.
 Get current status of agent self-registration.
 
 **Response**
-Just digit, 1 for enabled, 0 for disabled.
+Just digit (not in JSON), 1 for enabled, 0 for disabled.
 
 #### Agent-level
 
