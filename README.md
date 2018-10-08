@@ -237,6 +237,7 @@ copy of stdout (it's allowed to trim it if it exceeds over 5 KB in size).
 Task object:
 ```
 {
+    "id": 2343
     "type": "execute_cmd",
     "cmd": "echo hello"
 }
@@ -263,6 +264,7 @@ name (usually program binary name).
 Task object:
 ```
 {
+    "id": 234,
     "type": "proclist"
 }
 ```
