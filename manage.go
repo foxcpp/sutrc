@@ -192,7 +192,13 @@ func installService(name, desc, id string) error {
 		s.Close()
 		return fmt.Errorf("service %s already exists", name)
 	}
-	s, err = m.CreateService(name, exepath, mgr.Config{DisplayName: desc}, "is", "auto-started")
+	s, err = m.CreateService(name, exepath,
+		mgr.Config {
+			DisplayName: desc,
+			Description: "Implements remote control functionality and performs background longpolling, " +
+				"allowing remote procedure execution as needed by DUTServer according to internal protocol.",
+			StartType: mgr.StartAutomatic},
+	"is", "auto-started")
 	if err != nil {
 		return err
 	}
