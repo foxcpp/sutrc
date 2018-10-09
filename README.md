@@ -15,12 +15,14 @@ Just forwards JSON objects between web clients and agents while
 providing simple access control.
 
 #### Web interface (client)
+_In [webui](webui) subdirectory.__
 
 Written in JS and fully runs inside your browser. This allows us to not
 clutter dispatcher server with form logic and not to create additional
 backend server just for this.
 
 #### Agent
+_Windows implementation is in [dutcontrol-windows](dutcontrol-windows) subdirectory._
 
 Responsive for execution of commands and stuff on target machines.
 Constantly polls server for "tasks" to do.

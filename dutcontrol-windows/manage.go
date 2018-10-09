@@ -34,7 +34,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -157,21 +156,6 @@ func installService(name, desc, id string) error {
 	if err != nil {
 		return err
 	}
-
-	// Register this computer on the central server
-	midSplit := strings.Split(id, "-")
-	numID, err := strconv.Atoi(midSplit[1])
-	if err != nil {
-		log.Fatalln("Invalid ID:", err)
-	}
-	room, err := strconv.Atoi(midSplit[0])
-	if err != nil {
-		log.Fatalln("Invalid ID:", err)
-	}
-	d1 = append(d1, byte(' '))
-	d1 = append(d1, byte(numID))
-	d1 = append(d1, byte(' '))
-	d1 = append(d1, byte(room))
 
 	client := agent.NewClient(baseURL)
 	if err := client.RegisterAgent(id, mid); err != nil {
