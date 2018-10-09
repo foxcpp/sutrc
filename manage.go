@@ -23,6 +23,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/denisbrodbeck/machineid"
 	"golang.org/x/sys/windows/svc"
@@ -192,9 +193,30 @@ func installService(name, desc, id string) error {
 		log.Fatalln("Failed to construct POST request:", err)
 	}
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != 200 {
-		// TODO: process return better
-		log.Fatalln("Server is unable to perform request:", err)
+	if err != nil {
+		log.Fatalln("Cannot contact server to perform self-registration:", err)
+	}
+	if resp.StatusCode != 200 {
+		// We have two possible causes for non-200 code:
+		// - Error at dutserver level
+		// - Error at intermediate server (nginx)
+		//   Likely this means that dutserver itself is down.
+		// In second case response body will not contain JSON so we
+		// can only use StatusCode.
+
+		if resp.Header.Get("Content-Type") == "application/json" {
+			respBody, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatalln("Failed to read server response body:", err)
+			}
+			jsonErr := make(map[string]interface{})
+			if err := json.Unmarshal(respBody, &jsonErr); err != nil {
+				log.Fatalln("Failed to parse JSON server response:", err)
+			}
+			log.Fatalln("Self-registration request rejected by server:", jsonErr["msg"])
+		} else {
+			log.Fatalln("Failed to contact server to perform self-registration:", resp.Status)
+		}
 	}
 
 	exepath, err := exePath()
