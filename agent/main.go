@@ -36,22 +36,20 @@ import (
 
 // Wrapper class that takes care of all boilerplate required for agent session.
 type Client struct {
-	baseURL string
-	authHeader string
-	h http.Client
+	baseURL            string
+	authHeader         string
+	h                  http.Client
 	SupportedTaskTypes map[string]bool
 }
 
 func NewClient(baseURL string) Client {
-	return Client{baseURL: baseURL, h: http.Client{
-		Timeout: 26 * time.Second,
-	}}
+	return Client{baseURL: baseURL, h: http.Client{}}
 }
 
 func (c *Client) RegisterAgent(user, pass string) error {
 	// It's not necessary to do GET /agents_selfreg, server will reject request
 	// anyway if registration is disabled.
-	req, err := http.NewRequest("POST", c.baseURL + "/agents?user=" + url.QueryEscape(user) + "&pass=" + url.QueryEscape(pass), nil)
+	req, err := http.NewRequest("POST", c.baseURL+"/agents?user="+url.QueryEscape(user)+"&pass="+url.QueryEscape(pass), nil)
 	if err != nil {
 		return fmt.Errorf("request create: %v", err)
 	}
@@ -60,7 +58,7 @@ func (c *Client) RegisterAgent(user, pass string) error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode / 100 != 2 { // check for non 2xx code, not just 200.
+	if resp.StatusCode/100 != 2 { // check for non 2xx code, not just 200.
 		return errors.New(errorMessage(resp))
 	}
 	return nil
@@ -74,8 +72,10 @@ func (c *Client) UseAccount(user, pass string) {
 //
 // It may block for up to 26 seconds. And also note that it returns error for tasks
 // with type not in SupportedTaskTypes (if SupportTaskTypes is not nil).
+//
+// This function will return id=-1 if no tasks received.
 func (c *Client) PollTasks() (id int, type_ string, body map[string]interface{}, err error) {
-	req, err := http.NewRequest("GET", c.baseURL + "/tasks", nil)
+	req, err := http.NewRequest("GET", c.baseURL+"/tasks", nil)
 	if err != nil {
 		return -1, "", nil, fmt.Errorf("request create: %v", err)
 	}
@@ -84,7 +84,7 @@ func (c *Client) PollTasks() (id int, type_ string, body map[string]interface{},
 	if err != nil {
 		return -1, "", nil, err
 	}
-	if resp.StatusCode / 100 != 2 { // check for non 2xx code, not just 200.
+	if resp.StatusCode/100 != 2 { // check for non 2xx code, not just 200.
 		return -1, "", nil, errors.New(errorMessage(resp))
 	}
 
@@ -96,14 +96,20 @@ func (c *Client) PollTasks() (id int, type_ string, body map[string]interface{},
 		return -1, "", nil, fmt.Errorf("response body parse: %v", err)
 	}
 
+	if len(body) == 0 {
+		return -1, "", nil, nil
+	}
+
 	if body["id"] == nil {
 		return -1, "", body, errors.New("missing id field in response")
 	}
-	var ok bool
-	id, ok = body["id"].(int)
+	// for some reason json.Unmarshal to interface map uses float64
+	// for integer values
+	floatId, ok := body["id"].(float64)
 	if !ok {
 		return -1, "", body, errors.New("non-numeric task ID")
 	}
+	id = int(floatId)
 
 	if body["type"] == nil {
 		return id, "", body, errors.New("missing task type in response")
@@ -132,7 +138,7 @@ func (c *Client) SendTaskResult(taskID int, result map[string]interface{}) error
 		result["error"] = false
 	}
 
-	req, err := http.NewRequest("POST", c.baseURL + "/task_result?id=" + strconv.Itoa(taskID), bytes.NewReader(resJson))
+	req, err := http.NewRequest("POST", c.baseURL+"/task_result?id="+strconv.Itoa(taskID), bytes.NewReader(resJson))
 	if err != nil {
 		return fmt.Errorf("request create: %v", err)
 	}
@@ -141,7 +147,7 @@ func (c *Client) SendTaskResult(taskID int, result map[string]interface{}) error
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode / 100 != 2 { // check for non 2xx code, not just 200.
+	if resp.StatusCode/100 != 2 { // check for non 2xx code, not just 200.
 		return errors.New(errorMessage(resp))
 	}
 	return nil

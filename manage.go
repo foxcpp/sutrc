@@ -23,7 +23,7 @@
 package main
 
 import (
-	"encoding/json"
+	"dutcontrol/agent"
 	"fmt"
 	"github.com/denisbrodbeck/machineid"
 	"golang.org/x/sys/windows/svc"
@@ -32,7 +32,6 @@ import (
 	"golang.org/x/sys/windows/svc/mgr"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -160,7 +159,7 @@ func installService(name, desc, id string) error {
 	}
 
 	// Register this computer on the central server
-	midSplit := strings.Split(id,"-")
+	midSplit := strings.Split(id, "-")
 	numID, err := strconv.Atoi(midSplit[1])
 	if err != nil {
 		log.Fatalln("Invalid ID:", err)
@@ -174,49 +173,9 @@ func installService(name, desc, id string) error {
 	d1 = append(d1, byte(' '))
 	d1 = append(d1, byte(room))
 
-	client := &http.Client{
-		Timeout: 26 * time.Second,
-	}
-	res, err := client.Get(baseURL + "/agent_selfreg")
-	if err != nil {
-		log.Fatalln("Cannot contact server to perform self-registration:", err)
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Fatalln("Failed to read server response to GET request:", err)
-	}
-	if string(body) != "1" {
-		log.Fatalln("Server does not accepts new agents right now.")
-	}
-	req, err := http.NewRequest("POST", baseURL + "/agents?user=" + id + "&pass=" + mid, nil)
-	if err != nil {
-		log.Fatalln("Failed to construct POST request:", err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatalln("Cannot contact server to perform self-registration:", err)
-	}
-	if resp.StatusCode != 200 {
-		// We have two possible causes for non-200 code:
-		// - Error at dutserver level
-		// - Error at intermediate server (nginx)
-		//   Likely this means that dutserver itself is down.
-		// In second case response body will not contain JSON so we
-		// can only use StatusCode.
-
-		if resp.Header.Get("Content-Type") == "application/json" {
-			respBody, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				log.Fatalln("Failed to read server response body:", err)
-			}
-			jsonErr := make(map[string]interface{})
-			if err := json.Unmarshal(respBody, &jsonErr); err != nil {
-				log.Fatalln("Failed to parse JSON server response:", err)
-			}
-			log.Fatalln("Self-registration request rejected by server:", jsonErr["msg"])
-		} else {
-			log.Fatalln("Failed to contact server to perform self-registration:", resp.Status)
-		}
+	client := agent.NewClient(baseURL)
+	if err := client.RegisterAgent(id, mid); err != nil {
+		log.Fatalln("Failed to register on central server:", err)
 	}
 
 	exepath, err := exePath()
@@ -275,7 +234,7 @@ func (m *dutService) Execute(args []string, r <-chan svc.ChangeRequest, changes 
 	data, err := ioutil.ReadFile("C:\\Windows\\dutpc.key")
 	if err != nil {
 		const authKeyErr = "Failed to read authorization key:"
-		elog.Error(1, authKeyErr + " " + err.Error())
+		elog.Error(1, authKeyErr+" "+err.Error())
 		log.Fatalln(authKeyErr, err)
 	}
 	mid := strings.Split(string(data), " ")
