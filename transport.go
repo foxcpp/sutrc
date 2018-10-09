@@ -23,83 +23,61 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os/exec"
-	"strings"
-	"time"
+
+	"dutcontrol/agent"
+
+	"golang.org/x/sys/windows"
 )
 
 const baseURL = "https://hexawolf.me/dutcontrol/api"
 
-func processResponse(resp *http.Response, client *http.Client) {
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Println("Unable to get entire packet:", err)
-		return
+func longPoll(id, key string) {
+	client := agent.NewClient(baseURL)
+	client.SupportedTaskTypes = map[string]bool {
+		"execute_cmd": true,
+		"proclist": true,
 	}
-	var body map[string]interface{}
-	err = json.Unmarshal(bodyBytes, &body)
-	if err != nil {
-		elog.Warning(1, "Invalid packet received: " + err.Error())
-		return
-	}
-	resp.Body.Close()
-	taskType := body["type"].(string)
-	var response string
-	switch taskType {
-	case "execute_cmd":
-		command := body["cmd"].(string)
-		if command == "" {
-			response = "Empty command is not allowed!"
+	client.UseAccount(id, key)
+	for {
+		id, type_, body, err := client.PollTasks()
+		if err != nil {
+			log.Println("Error during task polling:", err)
+			if id != -1 {
+				go client.SendTaskResult(id, map[string]interface{}{"error": true, "msg": err.Error()})
+			}
+			continue
 		}
+		go executeTask(&client, id, type_, body)
+	}
+}
+
+func executeTask(client *agent.Client, taskID int, type_ string, body map[string]interface{}) {
+	switch type_ {
+	case "execute_cmd":
+		command, ok := body["cmd"].(string)
+		if !ok {
+			client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "cmd should be string"})
+			return
+		}
+		if command == "" {
+			client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Empty command is not allowed"})
+			return
+		}
+
 		out := exec.Command("cmd", "/C", command)
 		returnResult, err := out.Output()
 		if err != nil {
-			response = err.Error()
+			client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Empty command is not allowed"})
 		}
-		response = string(returnResult)
-		break
+
+		client.SendTaskResult(taskID, map[string]interface{}{
+			"status_code": out.ProcessState.Sys().(windows.WaitStatus).ExitCode,
+			"output": string(returnResult),
+		})
 	case "proclist":
-		out := exec.Command("cmd", "/C", "tasklist /V")
-		returnResult, err := out.Output()
-		if err != nil {
-			response = err.Error()
-		}
-		taskListStruct := make(map[string][]string)
-		scanner := bufio.NewScanner(strings.NewReader(string(returnResult)))
-		// Skip 3 lines
-		scanner.Scan()
-		scanner.Scan()
-		scanner.Scan()
-		for scanner.Scan() {
-
-		}
-		//taskListStruct["procs"] =
-		response = string(returnResult)
-		break
-	default:
-		response = "Invalid command"
-	}
-	http.NewRequest("POST", baseURL + "/task_result?id=" + body["id"].(string), strings.NewReader(response))
-}
-
-func longPoll(id, key string) {
-	client := &http.Client{
-		Timeout: 26,
-	}
-
-	for {
-		req, err := http.NewRequest("GET", baseURL + "/tasks", nil)
-		req.Header.Add("Authorization", id + ":" + key)
-		resp, err := client.Do(req)
-		if err != nil || resp.StatusCode != http.StatusOK {
-			time.Sleep(30 * time.Second)
-			continue
-		}
-		go processResponse(resp, client)
+		// TODO: Use Win32 to list PIDs with window names
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Not implemented"})
 	}
 }
