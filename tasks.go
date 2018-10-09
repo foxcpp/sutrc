@@ -11,9 +11,9 @@ import (
 	"time"
 )
 
-var taskResults map[string]map[int]chan json.RawMessage
+var taskResults map[string]map[int]chan map[string]interface{}
 var tasks map[string]chan map[string]interface{}
-var nextTaskID int
+var nextTaskID = 1
 
 // Should be locked if any variables above (except channel I/O) are accessed.
 var taskMetaLock sync.Mutex
@@ -36,9 +36,14 @@ func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if !json.Valid(body) {
+		bodyJson := make(map[string]interface{})
+		if err := json.Unmarshal(body, &bodyJson); err != nil {
 			writeError(w, http.StatusBadRequest, "Invalid JSON passed in body")
 			return
+		}
+
+		if _, prs := bodyJson["error"]; !prs {
+			bodyJson["error"] = false
 		}
 
 		// taskResults[agentID] is created on task submit if it doesn't exists.
@@ -49,7 +54,7 @@ func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
 			// If channel doesn't exists - nobody is waiting for task result. Just drop it.
 			return
 		}
-		c <- body
+		c <- bodyJson
 	} else {
 		writeError(w, http.StatusMethodNotAllowed, "/tasks_result supports only POST")
 	}
@@ -110,7 +115,7 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 		tasks[target] = make(chan map[string]interface{}, 16)
 	}
 	if _, prs := taskResults[target]; !prs {
-		taskResults[target] = make(map[int]chan json.RawMessage)
+		taskResults[target] = make(map[int]chan map[string]interface{})
 	}
 
 	// "Allocate" task ID.
@@ -118,7 +123,7 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 	nextTaskID++
 
 	// Prepare storage for result.
-	taskResults[target][id] = make(chan json.RawMessage)
+	taskResults[target][id] = make(chan map[string]interface{})
 
 	tasksChan := tasks[target]
 	taskMetaLock.Unlock()
@@ -153,12 +158,8 @@ func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.R
 		delete(taskResults[agentID], taskID)
 		taskMetaLock.Unlock()
 	case res := <-taskResChan:
-		resJson := make(map[string]interface{})
-		json.Unmarshal(res, &resJson) // this will not fail because res must be valid JSON.
-		resJson["error"] = false
-
 		log.Println("Forwarding task", taskID, "result from", agentID, "to", r.Header.Get("Authorization")[:6])
-		writeJson(w, resJson)
+		writeJson(w, res)
 	}
 }
 
@@ -173,7 +174,7 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 		tasks[agentID] = make(chan map[string]interface{}, 16)
 	}
 	if _, prs := taskResults[agentID]; !prs {
-		taskResults[agentID] = make(map[int]chan json.RawMessage)
+		taskResults[agentID] = make(map[int]chan map[string]interface{})
 	}
 	taskMetaLock.Unlock()
 

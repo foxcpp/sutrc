@@ -57,7 +57,7 @@ func serverSubcommand() {
 	defer db.Close()
 
 	onlineAgents = make(map[string]bool)
-	taskResults = make(map[string]map[int]chan json.RawMessage)
+	taskResults = make(map[string]map[int]chan map[string]interface{})
 	tasks = make(map[string]chan map[string]interface{})
 
 	http.HandleFunc("/tasks", tasksHandler)

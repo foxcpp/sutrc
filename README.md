@@ -32,7 +32,7 @@ Constantly polls server for "tasks" to do.
 Commands and other things we want to do with target machines are
 represented by abstract object, called "task".
 
-Each task have a type tag and ID. First is used to determine what to do
+Each task have a type tag and numeric ID. First is used to determine what to do
 with it on agent side. Second is required to coordinate
 asynchronous execution (read on). Task can also have any additional
 type-dependant information attached to it.
@@ -165,8 +165,13 @@ Pass event object in request body.
 
 **Response**
 ```json
-result object
+{
+    "error": true or false,
+    other result object fields (depending on task type)
+}
 ```
+
+Note that `error=true` can be set by agent.
 
 #### Agents self-registration
 
@@ -222,6 +227,15 @@ request timed out (agent should just retry in this case).
 Report task execution result back to server.
 `TASK_ID` - ID of corresponding task. Result object should be passed in
 request body.
+
+Agent should use standard error reporting structure to report errors happened
+during task execution:
+```
+{
+    "error": true,
+    "msg": "Unknown command: taskkill"
+}
+```
 
 ### Pre-defined task types
 
