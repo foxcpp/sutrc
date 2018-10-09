@@ -65,9 +65,9 @@
                         </div>
                         <div class="send-task-type-form" id="power-control-form" style="display: none">
                             <select class="form-control" id="send-task-power-option">
-                                <option data-target="shutdown /s">Shutdown</option>
-                                <option data-target="shutdown /r">Reboot</option>
-                                <option data-target="shutdown /h">Hibernate</option>
+                                <option data-target="shutdown /s /t 1">Shutdown</option>
+                                <option data-target="shutdown /r /t 1">Reboot</option>
+                                <option data-target="shutdown /h /t 1">Hibernate</option>
                             </select>
                         </div>
                         <div class="send-task-type-form" id="kill-proc-form" style="display: none">
@@ -126,6 +126,7 @@
         <script src="js/js.cookie.js"></script>
         
         <script>
+            var apiPrefix = "api"
             var agent = ""
             var sendTaskXHR
             var tasksListXHR
@@ -142,7 +143,7 @@
                 }
                 $("#agents-reload-btn").children(":first").addClass("fa-spin")
                 agentsUpdateXHR = $.ajax({
-                    url: "api/v1/agents",
+                    url: apiPrefix + "/agents",
                     method: "GET",
                     headers: {
                         "Authorization": Cookies.get("token")
@@ -228,10 +229,10 @@
             function populateTaskList() {
                 $("#proc-select-option").append("<option>Loading processes list...</option>")
                 tasksListXHR = $.ajax({
-                    url: "api/v1/tasks?" + jQuery.param({target: agent}),
+                    url: apiPrefix + "/tasks?" + jQuery.param({target: agent}),
                     method: "POST",
                     data: JSON.stringify({
-                        "type": "procs_list"
+                        "type": "proclist"
                     }),
                     headers: {
                         "Authorization": Cookies.get("token")
@@ -245,7 +246,7 @@
                     }
                     
                     data.procs.forEach(function(val){
-                        $("#proc-select-option").append('<option data-pid="' + val.id + '">' + val.id + ' - ' + val.name + '</option>')
+                        $("#proc-select-option").append('<option data-pid="' + val.id + '">' + val.name + '</option>')
                     })
                 }).fail(function(data) {
                     $("#proc-select-option").children().remove()
@@ -261,7 +262,7 @@
             
             $("#logout-btn").click(function(event) {
                 $.ajax({
-                    url: "api/v1/logout",
+                    url: apiPrefix + "/logout",
                     headers: {
                         "Authorization": Cookies.get("token")
                     }
@@ -329,7 +330,7 @@
                 }
                 $("#send-task-submit").text("Waiting for reply...")
                 sendTaskXHR = $.ajax({
-                    url: "api/v1/tasks?" + jQuery.param({target: agent}),
+                    url: apiPrefix + "/tasks?" + jQuery.param({target: agent}),
                     method: "POST",
                     data: JSON.stringify(payload),
                     headers: {

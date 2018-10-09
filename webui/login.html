@@ -63,8 +63,10 @@
         <script src="js/js.cookie.js"></script>
         
         <script>
+            var apiPrefix = "api"
+            
             if (Cookies.get("token") != undefined) {
-                window.location = "/dashboard.html"
+                window.location = "dashboard.html"
             }
             
             $("#login-btn").click(function(event){
@@ -81,7 +83,7 @@
                 
                 $("#login-btn").text("...")
                 $.ajax({
-                    url: "api/v1/login",
+                    url: apiPrefix + "/login",
                     dataType: "json",
                     data: {
                         user: $("#username").val(),
@@ -91,7 +93,7 @@
                 .done(function(data) {
                     Cookies.set("username", $("#username").val()) // no, lol, you can't magically relogin to different user using this. this is only for visual purposes.
                     Cookies.set("token", data.token)
-                    window.location = "/dashboard.html"
+                    window.location = "dashboard.html"
                 })
                 .fail(function(data) {
                     if (data.responseJSON != undefined) {

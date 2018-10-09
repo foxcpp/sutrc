@@ -6,7 +6,7 @@
 ### Installation
 
 Extract repository contents to place somewhere in your's HTTP server root.
-Make sure HTTP API of dutserver is reachable at `api/v1/<endpoint>` (relative
+Make sure HTTP API of dutserver is reachable at `api/<endpoint>` (relative
 to location of WebUI files).
 
 ### Agent Grouping
