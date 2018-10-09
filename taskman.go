@@ -68,8 +68,8 @@ func GetPID(hwnd syscall.Handle, pid *uint32) error {
 }
 
 type Window struct {
-	PID uint32
-	Name string
+	PID uint32 `json:"id"`
+	Name string `json:"name"`
 }
 
 func ListWindows() []Window {
