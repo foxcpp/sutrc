@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <title>dutserver WebUI</title>
+    </head>
+    <body>
+        <noscript>
+            JavaScript is required for this site to function.
+        </noscript>
+        
+        <script src="js/js.cookie.js"></script>
+        <script>
+            if (Cookies.get("token") == undefined) {
+                window.location = "login.html"
+            } else {
+                window.location = "dashboard.html"
+            }
+        </script>
+    </body>
+</html>

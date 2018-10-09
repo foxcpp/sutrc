@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <link rel="stylesheet" href="css/fontawesome.min.css">
+        <link rel="stylesheet" href="css/fontawesome-solid.min.css">
+        <link rel="stylesheet" href="css/common.css">
+        <title>dutserver WebUI - Dashboard</title>
+        
+        <style>
+            .agent-entry {
+                margin-top: 5px;
+                margin-bottom: 5px;
+            }
+            .agent-name {
+                display: inline-block;
+                line-height: 38px;
+            }
+            .agent-btn {
+                display: inline-block;
+                float: right;
+                margin-right: 5px;
+            }
+            .send-task-type-form {
+                padding-top: 5px;
+            }
+            .agents-group {
+                padding-left: 25px;
+            }
+            .agents-group-counter {
+                padding-left: 5px;   
+            }
+        </style>
+    </head>
+    <body>
+        <nav class="navbar navbar-light">
+            <a class="navbar-brand" href="#">dutserver</a>
+            
+            <span class="navbar-text">
+                Logged in as <span id="login-username">NOBODY!?</span>
+                <button type="button" id="logout-btn" class="btn btn-light fas fa-sign-out-alt" aria-label="Refresh"></button>
+            </span>
+        </nav>
+        <div class="modal fade" id="send-task-modal" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <header class="modal-header">
+                        <h5 id="send-task-modal-title" class="modal-title">AGENT-NAME</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </header>
+                    <form id="send-task-form" class="modal-body">
+                        <label for="send-task-type-select">Task type</label>
+                        <select class="form-control" id="send-task-type-select">
+                            <option data-target="execute-command-form">Execute Command</option>
+                            <option data-target="power-control-form">Power Control</option>
+                            <option data-target="kill-proc-form">Kill Process</option>
+                        </select>
+                        <div class="send-task-type-form" id="execute-command-form">
+                            <label for="send-task-command">Command:</label>
+                            <textarea class="form-control" id="send-task-command" rows="3"></textarea>
+                        </div>
+                        <div class="send-task-type-form" id="power-control-form" style="display: none">
+                            <select class="form-control" id="send-task-power-option">
+                                <option data-target="shutdown /s">Shutdown</option>
+                                <option data-target="shutdown /r">Reboot</option>
+                                <option data-target="shutdown /h">Hibernate</option>
+                            </select>
+                        </div>
+                        <div class="send-task-type-form" id="kill-proc-form" style="display: none">
+                            <label for="proc-select-option">Select process to kill:</label>
+                            <select class="form-control" id="proc-select-option">
+                                <!-- Populated dynamically by JS -->
+                            </select>
+                        </div>
+                    </form>
+                    <footer class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button id="send-task-submit" type="button" class="btn btn-primary">Send</button>
+                    </footer>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="result-modal" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <header class="modal-header">
+                        <h5>Task execution result</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </header>
+                    <div class="modal-body">
+                        Status: <span id="result-status-code">???</span>
+                        <pre id="result-output">
+                        </pre>
+                    </div>
+                    <footer class="modal-footer">
+                        <button data-dismiss="modal" type="button" class="btn btn-primary">OK</button>
+                    </footer>
+                </div>
+            </div>
+        </div>
+        <main class="container-fluid">
+            <header class="twoheader">
+                <h3 class="twoheader-left">Agents</h3>
+                <div class="twoheader-right">
+                    <span style="color:#bbb">Auto-update every 5 seconds</span>
+                    <button type="button" id="agents-reload-btn" class="twoheader-right btn btn-transparent" aria-label="Refresh">
+                        <span class="fas fa-sync-alt"></span>
+                    </button>
+                </div>
+            </header>
+            <div id="agentslist" class="accordion">
+                <noscript><p class="alert alert-danger">Enable JavaScript to use this website.</p></noscript>
+                <!-- Populated dynamically by JS -->
+            </div>
+        </main>
+        
+        <script src="js/jquery-3.3.1.min.js"></script>
+        <script src="js/popper.min.js"></script>
+        <script src="js/bootstrap.min.js"></script>
+        <script src="js/js.cookie.js"></script>
+        
+        <script>
+            var agent = ""
+            var sendTaskXHR
+            var tasksListXHR
+            var agentsUpdateXHR
+            
+            function escapeHTML(text) {
+                return $('<div/>').text(text).html()
+            }
+            
+            function loadAgentsList() {
+                if (agentsUpdateXHR != null) {
+                    agentsUpdateXHR.abort()
+                    agentsUpdateXHR = null
+                }
+                $("#agents-reload-btn").children(":first").addClass("fa-spin")
+                agentsUpdateXHR = $.ajax({
+                    url: "api/v1/agents",
+                    method: "GET",
+                    headers: {
+                        "Authorization": Cookies.get("token")
+                    }
+                }).done(function(data) {
+                    $("#agents-load-error").alert("close")
+                    $(".agents-group").children().remove()
+                    var groupsOnline = new Map()
+                    var groupsTotal = new Map()
+                    data.agents.forEach(function(val) {
+                        splitten = val.split("-")
+                        var group
+                        var name
+                        var groupName
+                        if (splitten.length === 1) {
+                            group = "unknown"
+                            groupName = "Unknown Group" 
+                            name = val
+                        } else {
+                            group = splitten[0]
+                            groupName = "Group " + group
+                            name = splitten.slice(1).join("-")
+                        }
+                        
+                        if ($("#agents-group-" + group).length == 0) {
+                            $("#agentslist").append('\
+                                <div>\
+                                    <a role="button" href="#" class="twoheader styleless-link agents-group-header" data-toggle="collapse" data-target="#agents-group-' + group + '">\
+                                        <span class="twoheader-left h5">' + groupName + '</span>\
+                                        <span id="agents-group-' + group + '-counters" class="twoheader-left h6 agents-group-counter">(...)</span>\
+                                        <span class="twoheader-right fas fa-arrow-down fa-lg" />\
+                                    </a>\
+                                    <div class="agents' + group + '-group collapse agents-group" data-parent="#agentslist" id="agents-group-' + group + '" aria-expanded="false"></div>\
+                                    <hr>\
+                                </div>')
+                        }
+                        if (!groupsOnline.has(group)) {
+                            groupsOnline.set(group, 0)
+                            groupsTotal.set(group, 0)
+                        }
+                        
+                        var disabledAttr = ""
+                        var title = escapeHTML(val)
+                        if (data.online[val]) {
+                            groupsOnline.set(group, groupsOnline.get(group) + 1)
+                            title = title + " (online)"
+                        } else {
+                            disabledAttr = "disabled"
+                        }
+                        groupsTotal.set(group, groupsTotal.get(group) + 1)
+                        
+                        $("#agents-group-" + group).append('\
+                            <figure class="agent-entry">\
+                                <span class="agent-name clearfix">' + title + '</span>\
+                                <button type="button" ' + disabledAttr + ' data-role="send-task" data-target="' + escapeHTML(val) + '" class="btn btn-outline-secondary agent-btn">\
+                                    Send task\
+                                </button>\
+                            </figure>')
+                    })
+                    
+                    groupsOnline.forEach(function(value, key) {
+                        $("#agents-group-" + key + "-counters").text("(" + String(value) + " online, " + String(groupsTotal.get(key)) + " total)")
+                    })
+                    
+                    registerAgentBtnCallback()
+                    $("#agents-reload-btn").children(":first").removeClass("fa-spin")
+                }).fail(function(data) {
+                    var msg = "???"
+                    if (data.responseJSON != undefined) {
+                        msg = data.responseJSON.msg
+                    } else {
+                        msg = data.statusText
+                    }
+                    
+                    $("#agents-load-error").alert("close")
+                    $("#agentslist").prepend('<div class="alert alert-danger alert-dismissible" id="agents-load-error" role="alert">Failed to update agents list: ' + escapeHTML(msg) + '.')
+                    $("#agents-reload-btn").children(":first").removeClass("fa-spin")
+                })
+            }
+            
+            window.setInterval(loadAgentsList, 5000)
+            
+            function populateTaskList() {
+                $("#proc-select-option").append("<option>Loading processes list...</option>")
+                tasksListXHR = $.ajax({
+                    url: "api/v1/tasks?" + jQuery.param({target: agent}),
+                    method: "POST",
+                    data: JSON.stringify({
+                        "type": "procs_list"
+                    }),
+                    headers: {
+                        "Authorization": Cookies.get("token")
+                    }
+                }).done(function(data) {
+                    $("#proc-select-option").children().remove()
+                    if (data == null || data == undefined || data.procs == undefined) {
+                        $("#task-submit-error").alert("close")
+                        $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                        return
+                    }
+                    
+                    data.procs.forEach(function(val){
+                        $("#proc-select-option").append('<option data-pid="' + val.id + '">' + val.id + ' - ' + val.name + '</option>')
+                    })
+                }).fail(function(data) {
+                    $("#proc-select-option").children().remove()
+                    $("#task-submit-error").alert("close")
+                    $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                })
+            }
+            
+            $(document).ready(loadAgentsList)
+            $(document).ready(function() { $("#login-username").text(Cookies.get("username")) })
+            
+            $("#agents-reload-btn").click(loadAgentsList)
+            
+            $("#logout-btn").click(function(event) {
+                $.ajax({
+                    url: "api/v1/logout",
+                    headers: {
+                        "Authorization": Cookies.get("token")
+                    }
+                }).done(function(data) {
+                    Cookies.remove("token")
+                    Cookies.remove("username")
+                    window.location = "login.html"
+                })
+                event.preventDefault()
+            })
+            
+            function updateSendTaskForm() {
+                $(".send-task-type-form").hide()
+                var option = $("#send-task-type-select")[0].selectedOptions[0]
+                $("#" + option.dataset.target).show()
+                if (option.dataset.target == "kill-proc-form") {
+                    populateTaskList()
+                }
+            }
+            
+            function registerAgentBtnCallback() {
+                // We modify DOM while loading agent list. We can't register callback ahead-of-time because there is no .agent-btn yet.
+                $(".agent-btn").click(function(event) {
+                    agent = event.currentTarget.dataset.target
+                    if (event.currentTarget.dataset.role == "send-task") {
+                        $("#send-task-modal-title").text("Send task to agent " + agent)
+
+                        updateSendTaskForm()
+                        $("#send-task-modal").modal("show")
+                    }
+                })
+                $(".agents-group").on("show.bs.collapse", function(event) {
+                    $(".agents-group-header").children(".fa-arrow-down").removeClass("fa-rotate-180")
+                    $(event.currentTarget).parent().children(".agents-group-header").children(".fa-arrow-down").addClass("fa-rotate-180")
+                })
+                $(".agents-group").on("hide.bs.collapse", function(event) {
+                    $(".agents-group-header").children(".fa-arrow-down").removeClass("fa-rotate-180")
+                })
+            }
+            
+            $("#send-task-type-select").change(updateSendTaskForm)
+            
+            $("#send-task-submit").click(function(event) {
+                var type = $("#send-task-type-select").val()
+                var payload = {}
+                switch (type) {
+                    case "Execute Command":
+                        payload = {
+                            type: "execute_cmd",
+                            cmd: $("#send-task-command").val()
+                        }
+                        break;
+                    case "Kill Process":
+                        payload = {
+                            type: "execute_cmd",
+                            cmd: "taskkill /pid " + $("#proc-select-option")[0].selectedOptions[0].dataset.pid
+                        }
+                        break;
+                    case "Power Control":
+                        payload = {
+                            type: "execute_cmd",
+                            cmd: $("#send-task-power-option")[0].selectedOptions[0].dataset.target
+                        }
+                        break;
+                }
+                $("#send-task-submit").text("Waiting for reply...")
+                sendTaskXHR = $.ajax({
+                    url: "api/v1/tasks?" + jQuery.param({target: agent}),
+                    method: "POST",
+                    data: JSON.stringify(payload),
+                    headers: {
+                        "Authorization": Cookies.get("token")
+                    }
+                }).done(function(data) {
+                    $(".modal").modal("hide")
+                    
+                    if (data.error) {
+                        $("#result-status-code").text("Unknown")
+                        $("#result-output").text("Error returned by server: " + data.msg)
+                    } else if (Object.keys(data).length == 0) {
+                        $("#result-status-code").text("Unknown")
+                        $("#result-output").text("Timed out while waiting for agent response.")
+                    } else {
+                        $("#result-status-code").text(data.status_code)
+                        $("#result-output").text(data.output)
+                    }
+                    $("#result-modal").modal("show")
+                    $("#send-task-submit").text("Send")
+                }).fail(function(data) {
+                    var msg = "???"
+                    if (data.responseJSON != undefined) {
+                        msg = data.responseJSON.msg
+                    } else {
+                        msg = data.statusText
+                    }
+                    
+                    $("#task-submit-error").alert("close")
+                    $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to submit task: ' + escapeHTML(msg) + '.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                    $("#send-task-submit").text("Send")
+                })
+            })
+            
+            $("#send-task-modal").on("hidden.bs.modal", function(event){
+                if (sendTaskXHR != null) {
+                    sendTaskXHR.abort()
+                    sendTaskXHR = null
+                }
+                if (tasksListXHR != null) {
+                    tasksListXHR.abort()
+                    tasksListXHR = null
+                }
+            })
+        </script>
+    </body>
+</html>

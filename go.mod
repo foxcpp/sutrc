@@ -1,4 +1,4 @@
-module dutserver
+module github.com/foxcpp/dutserver
 
 require (
 	github.com/mattn/go-sqlite3 v1.9.0

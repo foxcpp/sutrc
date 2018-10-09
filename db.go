@@ -67,7 +67,7 @@ func (db *DB) ListAgents() ([]string, error) {
 		return nil, err
 	}
 
-	var res []string
+	res := []string{}
 	for rows.Next() {
 		user := ""
 		if err := rows.Scan(&user); err != nil {

@@ -1,0 +1,15 @@
+# dutserver WebUI
+
+![Login Window Screenshot](_screenshots/login.png)
+![Dashboard Screenshot](_screenshots/dashboard.png)
+
+### Installation
+
+Extract repository contents to place somewhere in your's HTTP server root.
+Make sure HTTP API of dutserver is reachable at `api/v1/<endpoint>` (relative
+to location of WebUI files).
+
+### Agent Grouping
+
+WebUI uses `-`-separated prefix of agent username for grouping. Agents without `-` in name go into
+"unknown" group. This allows for much easier browsing when you have a lot of agents.

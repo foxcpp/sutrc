@@ -49,8 +49,8 @@ func serverSubcommand() {
 	port := os.Args[2]
 	DBFile := os.Args[3]
 
-	//var err error
-	db, err := OpenDB(DBFile)
+	var err error
+	db, err = OpenDB(DBFile)
 	if err != nil {
 		log.Fatalln("Failed to open DB:", err)
 	}
