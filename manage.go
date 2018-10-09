@@ -160,7 +160,7 @@ func installService(name, desc, id string) error {
 	}
 
 	// Register this computer on the central server
-	midSplit := strings.Split(mid,"-")
+	midSplit := strings.Split(id,"-")
 	numID, err := strconv.Atoi(midSplit[1])
 	if err != nil {
 		log.Fatalln("Invalid ID:", err)
@@ -175,7 +175,7 @@ func installService(name, desc, id string) error {
 	d1 = append(d1, byte(room))
 
 	client := &http.Client{
-		Timeout: 26,
+		Timeout: 26 * time.Second,
 	}
 	res, err := client.Get(baseURL + "/agent_selfreg")
 	if err != nil {
