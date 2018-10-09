@@ -43,7 +43,9 @@ type Client struct {
 }
 
 func NewClient(baseURL string) Client {
-	return Client{baseURL: baseURL, h: http.Client{}}
+	return Client{baseURL: baseURL, h: http.Client{
+		Timeout: 26 * time.Second,
+	}}
 }
 
 func (c *Client) RegisterAgent(user, pass string) error {
