@@ -28,9 +28,13 @@ import (
 	"syscall"
 
 	"dutcontrol/agent"
+
+	"golang.org/x/text/encoding/charmap"
 )
 
 const baseURL = "https://hexawolf.me/dutcontrol/api"
+
+var cmdEncoding = charmap.CodePage866
 
 func longPoll(id, key string) {
 	client := agent.NewClient(baseURL)
@@ -58,6 +62,8 @@ func longPoll(id, key string) {
 func executeTask(client *agent.Client, taskID int, type_ string, body map[string]interface{}) {
 	switch type_ {
 	case "execute_cmd":
+		dec := cmdEncoding.NewDecoder()
+
 		log.Println("Received execute_cmd task", body)
 		command, ok := body["cmd"].(string)
 		if !ok {
@@ -73,27 +79,33 @@ func executeTask(client *agent.Client, taskID int, type_ string, body map[string
 		returnResult, err := out.Output()
 		if err != nil {
 			client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": err.Error()})
+			return
+		}
+
+		decodedOut, err := dec.String(string(returnResult))
+		if err != nil {
+			client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Can't convert output to Unicode"})
+			return
 		}
 
 		client.SendTaskResult(taskID, map[string]interface{}{
 			"status_code": out.ProcessState.Sys().(syscall.WaitStatus).ExitCode,
-			"output":      string(returnResult),
+			"output":      decodedOut,
 		})
-
 	case "proclist":
 		log.Println("Received proclist task", body)
 		procs, err := Processes()
 		if err != nil {
 			client.SendTaskResult(taskID, map[string]interface{}{
 				"error": true,
-				"msg": err.Error(),
+				"msg":   err.Error(),
 			})
 			return
 		}
 		var windowsArray []Window
 		for _, v := range procs {
 			windowsArray = append(windowsArray, Window{
-				PID: v.Pid(),
+				PID:  v.Pid(),
 				Name: v.Executable(),
 			})
 		}
