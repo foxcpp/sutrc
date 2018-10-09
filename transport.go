@@ -25,19 +25,18 @@ package main
 import (
 	"log"
 	"os/exec"
+	"syscall"
 
 	"dutcontrol/agent"
-
-	"golang.org/x/sys/windows"
 )
 
 const baseURL = "https://hexawolf.me/dutcontrol/api"
 
 func longPoll(id, key string) {
 	client := agent.NewClient(baseURL)
-	client.SupportedTaskTypes = map[string]bool {
+	client.SupportedTaskTypes = map[string]bool{
 		"execute_cmd": true,
-		"proclist": true,
+		"proclist":    true,
 	}
 	client.UseAccount(id, key)
 	for {
@@ -49,6 +48,9 @@ func longPoll(id, key string) {
 			}
 			continue
 		}
+		if id == -1 {
+			continue
+		}
 		go executeTask(&client, id, ttype, body)
 	}
 }
@@ -56,6 +58,7 @@ func longPoll(id, key string) {
 func executeTask(client *agent.Client, taskID int, type_ string, body map[string]interface{}) {
 	switch type_ {
 	case "execute_cmd":
+		log.Println("Received execute_cmd task", body)
 		command, ok := body["cmd"].(string)
 		if !ok {
 			client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "cmd should be string"})
@@ -73,13 +76,14 @@ func executeTask(client *agent.Client, taskID int, type_ string, body map[string
 		}
 
 		client.SendTaskResult(taskID, map[string]interface{}{
-			"status_code": out.ProcessState.Sys().(windows.WaitStatus).ExitCode,
-			"output": string(returnResult),
+			"status_code": out.ProcessState.Sys().(syscall.WaitStatus).ExitCode,
+			"output":      string(returnResult),
 		})
 
 	case "proclist":
+		log.Println("Received proclist task", body)
 		windowsArray := ListWindows()
-		responseMap := map[string]interface{} {
+		responseMap := map[string]interface{}{
 			"procs": windowsArray,
 		}
 		client.SendTaskResult(taskID, responseMap)
