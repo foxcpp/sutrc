@@ -1,0 +1,16 @@
+[Unit]
+Description=dutserver
+After=network.target
+
+[Service]
+Type=notify
+NotifyAccess=all
+ExecStart=/usr/bin/dutserver server %i /var/lib/dutserver-%i/auth.db
+Restart=on-failure
+DynamicUser=yes
+StateDirectory=dutserver-%i
+TimeoutStartSec=10
+Environment="USING_SYSTEMD=1"
+
+[Install]
+WantedBy=multi-user.target

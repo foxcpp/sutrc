@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -49,6 +50,11 @@ func serverSubcommand() {
 	port := os.Args[2]
 	DBFile := os.Args[3]
 
+	if os.Getenv("USING_SYSTEMD") == "1" {
+		// Don't print timestamp in log because journald captures it anyway.
+		log.SetFlags(0)
+	}
+
 	var err error
 	db, err = OpenDB(DBFile)
 	if err != nil {
@@ -73,6 +79,14 @@ func serverSubcommand() {
 			log.Fatalln(err)
 		}
 	}()
+
+	if os.Getenv("USING_SYSTEMD") == "1" {
+		cmd := exec.Command("systemd-notify", "--ready", `--status=Listening on 0.0.0.0:`+port)
+		if out, err := cmd.Output(); err != nil {
+			log.Println("Failed to notify systemd about successful startup:", err)
+			log.Println(string(out))
+		}
+	}
 
 	// Handle Ctrl-C and stuff gracefully.
 	sig := make(chan os.Signal, 1)

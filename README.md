@@ -315,6 +315,16 @@ two temporary files will be created during server execution.
 if you are moving database somewhere else. They usually will be deleted
 on **normal** server shutdown.
 
+### systemd unit
+
+`dutserver@.service` is provided for convenience.
+Copy it to `/etc/systemd/systemd` and start like this:
+```
+systemctl start dutserver@8000
+```
+Where `8000` is port to listen on. Note that specifing different port will make
+it use different database file (`/var/lib/dutserver-PORT/auth.db`).
+
 ### Command-line utility how-to
 
 Server binary also acts as a console utility for database maintenance.
