@@ -15,7 +15,7 @@ Just forwards JSON objects between web clients and agents while
 providing simple access control.
 
 #### Web interface (client)
-_In [webui](webui) subdirectory.__
+_In [webui](webui) subdirectory._
 
 Written in JS and fully runs inside your browser. This allows us to not
 clutter dispatcher server with form logic and not to create additional
@@ -158,6 +158,8 @@ tasks (listening for them now).
  }
 }
 ```
+
+**Note:** Server supports timestamp-based caching using `If-Modified-Since` header.
 
 #### `POST /tasks?target=AGENTID`
 **Longpooling endpoint.**

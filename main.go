@@ -10,13 +10,18 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
 
 var db *DB
 var agentsSelfregEnabled = false
+
 var onlineAgents map[string]bool
+var offlineAgentTimers map[string]*time.Timer
+var onlineAgentsTimestamp time.Time
+var onlineAgentsLock sync.Mutex
 
 func main() {
 	if len(os.Args) == 1 {
@@ -64,6 +69,7 @@ func serverSubcommand() {
 	defer db.Close()
 
 	onlineAgents = make(map[string]bool)
+	offlineAgentTimers = make(map[string]*time.Timer)
 	taskResults = make(map[string]map[int]chan map[string]interface{})
 	tasks = make(map[string]chan map[string]interface{})
 
@@ -148,7 +154,13 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ts, _ := db.AuthInfoTimestamp()
-
+		if onlineAgentsTimestamp.IsZero() {
+			// We don't know which agents was online so can't even compare them.
+			// Assume that they are different.
+			ts = time.Now()
+		} else if onlineAgentsTimestamp.After(ts) {
+			ts = onlineAgentsTimestamp
+		}
 		if hdr := r.Header.Get("If-Modified-Since"); !ts.IsZero() && hdr != "" {
 			expectedTs, err := time.ParseInLocation(time.RFC1123Z, hdr, time.UTC)
 			if err == nil && expectedTs.Equal(ts) {

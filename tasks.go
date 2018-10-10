@@ -166,6 +166,17 @@ func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.R
 func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration) {
 	agentID := strings.Split(r.Header.Get("Authorization"), ":")[0]
 
+	onlineAgentsLock.Lock()
+	if offlineAgentTimers[agentID] != nil {
+		offlineAgentTimers[agentID].Stop()
+		offlineAgentTimers[agentID] = nil
+	}
+	// Change only if differs more than on second.
+	if onlineAgentsTimestamp.Unix() < time.Now().Unix() {
+		onlineAgentsTimestamp = time.Now()
+	}
+	onlineAgentsLock.Unlock()
+
 	taskMetaLock.Lock()
 	// This can be first time we see this Agent ID, allocate everything we need..
 	if _, prs := tasks[agentID]; !prs {
@@ -182,6 +193,7 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	// Agent is expected to handle them asynchronously so it will be
 	// listening most of the time.
 	onlineAgents[agentID] = true
+	onlineAgentsTimestamp = time.Now()
 
 	log.Println(agentID, "is watching for tasks")
 
@@ -192,10 +204,17 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	select {
 	case <-time.After(timeout):
 		writeJson(w, map[string]interface{}{})
-		onlineAgents[agentID] = false
 	case task := <-tasksChan:
 		log.Println("Sending task", task["id"].(int), "to", agentID)
 		writeJson(w, task)
-		onlineAgents[agentID] = false
 	}
+
+	onlineAgentsLock.Lock()
+	offlineAgentTimers[agentID] = time.AfterFunc(5 * time.Second, func(){
+		onlineAgentsLock.Lock()
+		onlineAgents[agentID] = false
+		onlineAgentsTimestamp = time.Now()
+		onlineAgentsLock.Unlock()
+	})
+	onlineAgentsLock.Unlock()
 }
