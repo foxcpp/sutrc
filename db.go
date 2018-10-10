@@ -4,9 +4,11 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"golang.org/x/crypto/scrypt"
 	"log"
 	"sync"
+	"time"
+
+	"golang.org/x/crypto/scrypt"
 )
 
 type AccountType int
@@ -26,6 +28,10 @@ type DB struct {
 	checkUsrExistance *sql.Stmt
 	addAccount        *sql.Stmt
 	remAccount        *sql.Stmt
+
+	// Account DB change timestamp.
+	setTimestamp *sql.Stmt
+	getTimestamp *sql.Stmt
 
 	// Session management
 	initSession  *sql.Stmt
@@ -119,13 +125,47 @@ func (db *DB) AddAccount(user string, pass string, acctType AccountType) error {
 		return err
 	}
 
-	_, err = db.addAccount.Exec(user, acctType, salt, hashed)
-	return err
+	tx, err := db.d.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Stmt(db.addAccount).Exec(user, acctType, salt, hashed)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Stmt(db.setTimestamp).Exec(time.Now().Unix())
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (db *DB) RemAccount(user string) error {
-	_, err := db.remAccount.Exec(user)
-	return err
+	tx, err := db.d.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Stmt(db.remAccount).Exec(user)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Stmt(db.setTimestamp).Exec(time.Now().Unix())
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (db *DB) AuthInfoTimestamp() (time.Time, error) {
+	row := db.getTimestamp.QueryRow()
+	unixTs := int64(0)
+	return time.Unix(unixTs, 0), row.Scan(&unixTs)
 }
 
 func (db *DB) InitSession(user string) (string, error) {
@@ -175,6 +215,10 @@ func (db *DB) initSchema() error {
 		sessionId TEXT PRIMARY KEY NOT NULL,
 		user TEXT NOT NULL REFERENCES authInfo(user) ON DELETE CASCADE
 	)`)
+	if err != nil {
+		return err
+	}
+	_, err = db.d.Exec(`CREATE TABLE IF NOT EXISTS authInfoTimestamp (lastChange INTEGER NOT NULL)`)
 	return err
 }
 
@@ -207,6 +251,12 @@ func (db *DB) initStmts() error {
 	if err != nil {
 		return err
 	}
+
+	db.setTimestamp, err = db.d.Prepare(`INSERT OR REPLACE INTO authInfoTimestamp VALUES (?)`)
+	if err != nil {
+		return err
+	}
+	db.getTimestamp, err = db.d.Prepare(`SELECT * FROM authInfoTimestamp`)
 
 	db.initSession, err = db.d.Prepare(`INSERT INTO sessions VALUES (?, ?)`)
 	if err != nil {

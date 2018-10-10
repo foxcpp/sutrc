@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 )
 
 var db *DB
@@ -146,6 +147,16 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		ts, _ := db.AuthInfoTimestamp()
+
+		if hdr := r.Header.Get("If-Modified-Since"); !ts.IsZero() && hdr != "" {
+			expectedTs, err := time.ParseInLocation(time.RFC1123Z, hdr, time.UTC)
+			if err == nil && expectedTs.Equal(ts) {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+		}
+
 		agents, err := db.ListAgents()
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -157,6 +168,9 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 			onlineAgentsL[agent] = onlineAgents[agent]
 		}
 
+		if !ts.IsZero() {
+			w.Header().Set("Last-Modified", ts.In(time.UTC).Format(time.RFC1123))
+		}
 		writeJson(w, map[string]interface{}{"error": false, "agents": agents, "online": onlineAgentsL})
 	} else {
 		writeError(w, http.StatusMethodNotAllowed, "/agents only supports POST and GET")
