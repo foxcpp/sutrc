@@ -76,10 +76,12 @@ func executeTask(client *agent.Client, taskID int, type_ string, body map[string
 		}
 
 		out := exec.Command("cmd", "/C", command)
-		returnResult, err := out.Output()
+		returnResult, err := out.CombinedOutput()
 		if err != nil {
-			client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": err.Error()})
-			return
+			if _, ok := err.(*exec.ExitError); !ok {
+				client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": err.Error()})
+				return
+			}
 		}
 
 		decodedOut, err := dec.String(string(returnResult))
