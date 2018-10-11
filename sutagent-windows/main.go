@@ -41,8 +41,8 @@ func usage(errmsg string) {
 }
 
 func main() {
-	const svcname = "dutcontrol"
-	const description = "State University of Telecommunications Remote Procedure Execution Service"
+	const svcname = "sutagent"
+	const description = "State University of Telecommunications Remote Control Service Agent"
 
 	// If we are running as an interactive session, we need to launch the service by itself.
 	isInteractive, err := svc.IsAnInteractiveSession()

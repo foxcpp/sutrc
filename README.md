@@ -1,28 +1,29 @@
-# dutserver
-Lightweight remote control system - task dispatcher daemon.
+# sutrc protocol
+Lightweight remote control system for SUT university.
 
 ### Background
 
 We have a lot of PCs and we need to execute commands on them from Web interface.
 Most of existing solution are heavyweight and proprietary (and so they
-require us to pay money for usage). That's how dutserver appeared.
+require us to pay money for usage). That's how sutrc appeared.
 
 ### Roles
 
 #### Dispatcher server
+_In [sutserver](sutserver) subdirectory._
 
 Just forwards JSON objects between web clients and agents while
 providing simple access control.
 
 #### Web interface (client)
-_In [webui](webui) subdirectory._
+_In [sutcp](sutcp) subdirectory._
 
 Written in JS and fully runs inside your browser. This allows us to not
 clutter dispatcher server with form logic and not to create additional
 backend server just for this.
 
 #### Agent
-_Windows implementation is in [dutcontrol-windows](dutcontrol-windows) subdirectory._
+_Windows implementation is in [sutagent-windows](sutagent-windows) subdirectory._
 
 Responsive for execution of commands and stuff on target machines.
 Constantly polls server for "tasks" to do.
@@ -102,222 +103,6 @@ Generic schema for all errors:
 Non-error responses format varies depending on endpoint.
 HTTP status code is **always different from 200** if error is returned.
 
-### HTTP API reference
+#### HTTP API reference
 
-#### Session management
-
-##### `GET /login?token=PASS`
-Initiate session for specified user. Result contains
-
-**Response**
-```json
-{
- "error": false,
- "token": "..."
-}
-```
-
-##### `POST /logout`
-Pass session token returned by `/login` in `Authorization` header to terminate
-session.
-
-#### Admin-level
-
-Pass session token returned by `/login` in `Authorization` header.
-
-#### `GET /agents`
-
-Returns known agent lists.
-
-Agent is considered online if it currently ready to accept
-tasks (listening for them now).
-
-**Response**
-```json
-{
- "error": false,
- "agents": {
-  "agent1",
-  "agent2",
-  ...
- },
- "online": {
-  "agent1": true,
-  "agent2": false,
- }
-}
-```
-
-#### `PATCH /agents?id=OLDID&newId=NEWID`
-
-Rename change name of agent with name OLDID to NEWID.
-
-#### `POST /tasks?target=AGENTID`
-**Longpooling endpoint.**
-
-Enqueue task for agent `AGENTID` and wait for result from agent.
-Pass event object in request body.
-
-**Response**
-```json
-{
-    "error": true or false,
-    other result object fields (depending on task type)
-}
-```
-
-Note that `error=true` can be set by agent.
-
-#### Agents self-registration
-
-Agents self-registration mode allows agents to automatically create
-accounts for themselves, making mass deployment a lot easier.
-
-##### `POST /agents?token=PASS`
-
-Called by client to create new agent account.
-Works only if `GET /agents_selfreg` returns 1.
-
-You don't need to supply `Authorization` header.
-
-You can replace other's agent (or your own if you want to change password)
-accounts but can't replace admin accounts using this endpoint, in this
-case your attempt will be ignored without error.
-
-##### `POST /agent_selfreg?enabled=1`
-
-Allow previous endpoint to be used. `enabled=0` undoes
-effect of previous request with `enabled=1`.
-
-##### `GET /agent_selfreg`
-
-Get current status of agent self-registration.
-
-**Response**
-Just digit (not in JSON), 1 for enabled, 0 for disabled.
-
-#### Agent-level
-
-Agents don't require session to operate and instead just pass
-user:pass pair in `Authorization` header.
-
-#### `GET /tasks`
-**Longpooling endpoint.**
-
-Return pending tasks for agent, if any.
-
-**Response**
-Contains task object that should be "executed" or just empty JSON if
-request timed out (agent should just retry in this case).
-```
-{
- "type": TASK_TYPE,
- "id": TASK_ID,
- ...
-}
-```
-
-#### `POST /task_result?id=TASK_ID`
-
-Report task execution result back to server.
-`TASK_ID` - ID of corresponding task. Result object should be passed in
-request body.
-
-Agent should use standard error reporting structure to report errors happened
-during task execution:
-```
-{
-    "error": true,
-    "msg": "Unknown command: taskkill"
-}
-```
-
-### Pre-defined task types
-
-#### Shell command execution
-
-**JSON type string**: `"execute_cmd"`.
-
-Agent should execute shell command passed in `"cmd"` field of task JSON object and return
-result containing `"status_code"` and `"output"` with process status code (see OS documentation) and
-copy of stdout (it's allowed to trim it if it exceeds over 5 KB in size).
-
-**Example:**
-Task object:
-```
-{
-    "id": 2343
-    "type": "execute_cmd",
-    "cmd": "echo hello"
-}
-```
-Task result object:
-```
-{
-    "status_code": 0,
-    "output": "hello"
-}
-```
-
-#### Task list query
-
-**JSON type string:** `"proclist"`
-
-Agent should return list of OS processes running on it's machine as JSON array in `"procs"` field 
-of response.
-
-Each entry should have `"id"` as numeric process identifier and `"name"` as a human-friendly process
-name (usually program binary name).
-
-**Example:**
-Task object:
-```
-{
-    "id": 234,
-    "type": "proclist"
-}
-```
-Task result object:
-```
-{
-    "procs": [
-        {
-            "id": 7,
-            "name": "chrome.exe"
-        },
-        {
-            "id": 172,
-            "name": "hl2.exe"
-        }
-    ]
-}
-```
-
-### Server configuration
-
-Just compile it using regular Go tools (make sure you have C compiler
-because we use SQLite) and run it as follows:
-```
-dutserver server 8000 database_path
-```
-`8000` is port to listen on. It's recommended to use reverse proxy
-because dutserver lacks TLS support.
-Database with all stuff will be stored in spcified file (`database_path`). Note that however
-two temporary files will be created during server execution.
-`database_path-wal` and `database_path-shm`. Both **should be copied too**
-if you are moving database somewhere else. They usually will be deleted
-on **normal** server shutdown.
-
-### systemd unit
-
-`dutserver@.service` is provided for convenience.
-Copy it to `/etc/systemd/systemd` and start like this:
-```
-systemctl start dutserver@8000
-```
-Where `8000` is port to listen on. Note that specifing different port will make
-it use different database file (`/var/lib/dutserver-PORT/auth.db`).
-
-### Command-line utility how-to
-
-Server binary also acts as a console utility for database maintenance.
+Can be found in [HTTP_API.md](HTTP_API.md) file.

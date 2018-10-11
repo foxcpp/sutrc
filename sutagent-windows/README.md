@@ -1,22 +1,22 @@
-# Windows implementation of dutserver agent
+# sutagent-windows 
 
 ### Installation
 
-`dutcontrol-windows install AGENTNAME` to install dutcontrol as a Windows
+`sutagent-windows install AGENTNAME` to install sutagent as a Windows
 service.
 
 #### Other subcommands
 
-##### `dutcontrol-windows remove`
+##### `sutagent-windows remove`
 Uninstall service.
 
-##### `dutcontrol-windows debug`
+##### `sutagent-windows debug`
 Launch agent without installation.
 
-##### `dutcontrol-windows start`
+##### `sutagent-windows start`
 Start installed service.
 
-##### `dutcontrol-windows stop`
+##### `sutagent-windows stop`
 Stop installed service.
 
 ### Configuration

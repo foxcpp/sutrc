@@ -1,4 +1,4 @@
-module github.com/foxcpp/dutserver
+module github.com/foxcpp/sutrc
 
 require (
 	github.com/denisbrodbeck/machineid v1.0.0

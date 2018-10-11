@@ -7,8 +7,8 @@
         <link rel="stylesheet" href="css/fontawesome.min.css">
         <link rel="stylesheet" href="css/fontawesome-solid.min.css">
         <link rel="stylesheet" href="css/common.css">
-        <title>dutserver WebUI - Dashboard</title>
-        
+        <title>SUT Control Panel - Dashboard</title>
+
         <style>
             .agent-entry {
                 margin-top: 5px;
@@ -30,13 +30,13 @@
                 padding-left: 25px;
             }
             .agents-group-counter {
-                padding-left: 5px;   
+                padding-left: 5px;
             }
         </style>
     </head>
     <body>
         <nav class="navbar navbar-light">
-            <a class="navbar-brand" href="#">dutserver</a>
+            <a class="navbar-brand" href="#">SUT Control Panel</a>
 
             <span class="navbar-text">
                 <button type="button" id="logout-btn" class="btn btn-light fas fa-sign-out-alt" aria-label="Refresh"></button>
@@ -138,12 +138,12 @@
                 <!-- Populated dynamically by JS -->
             </div>
         </main>
-        
+
         <script src="js/jquery-3.3.1.min.js"></script>
         <script src="js/popper.min.js"></script>
         <script src="js/bootstrap.min.js"></script>
         <script src="js/js.cookie.js"></script>
-        
+
         <script>
             var apiPrefix = "api"
             var agent = ""
@@ -151,11 +151,11 @@
             var tasksListXHR
             var agentsUpdateXHR
             var renameXHR
-            
+
             function escapeHTML(text) {
                 return $('<div/>').text(text).html()
             }
-            
+
             function loadAgentsList() {
                 if (agentsUpdateXHR != null) {
                     agentsUpdateXHR.abort()
@@ -180,14 +180,14 @@
                         var groupName
                         if (splitten.length === 1) {
                             group = "unknown"
-                            groupName = "Unknown Group" 
+                            groupName = "Unknown Group"
                             name = val
                         } else {
                             group = splitten[0]
                             groupName = "Group " + group
                             name = splitten.slice(1).join("-")
                         }
-                        
+
                         if ($("#agents-group-" + group).length == 0) {
                             $("#agentslist").append('\
                                 <div class="agents-group-root">\
@@ -204,7 +204,7 @@
                             groupsOnline.set(group, 0)
                             groupsTotal.set(group, 0)
                         }
-                        
+
                         var disabledAttr = ""
                         var title = escapeHTML(val)
                         if (data.online[val]) {
@@ -215,7 +215,7 @@
                         }
                         console.log(group + ": " + groupsTotal.get(group) + " + 1")
                         groupsTotal.set(group, groupsTotal.get(group) + 1)
-                        
+
                         $("#agents-group-" + group).append('\
                             <figure class="agent-entry">\
                                 <span class="agent-name clearfix">' + title + '</span>\
@@ -227,13 +227,13 @@
                                 </button>\
                             </figure>')
                     })
-                    
+
                     groupsOnline.forEach(function(value, key) {
                         $("#agents-group-" + key + "-counters").text("(" + String(value) + " online, " + String(groupsTotal.get(key)) + " total)")
 
                         console.log(key + " => " + groupsTotal.get(key))
                     })
-                    
+
                     registerAgentBtnCallback()
                     $("#agents-reload-btn").children(":first").removeClass("fa-spin")
                     $(".agents-group:not(:has(.agent-entry))").parent(".agents-group-root").remove()
@@ -244,15 +244,15 @@
                     } else {
                         msg = data.statusText
                     }
-                    
+
                     $("#agents-load-error").alert("close")
                     $("#agentslist").prepend('<div class="alert alert-danger alert-dismissible" id="agents-load-error" role="alert">Failed to update agents list: ' + escapeHTML(msg) + '.')
                     $("#agents-reload-btn").children(":first").removeClass("fa-spin")
                 })
             }
-            
+
             //window.setInterval(loadAgentsList, 5000)
-            
+
             function populateTaskList() {
                 $("#proc-select-option").append("<option>Loading processes list...</option>")
                 tasksListXHR = $.ajax({
@@ -271,7 +271,7 @@
                         $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
                         return
                     }
-                    
+
                     data.procs.forEach(function(val){
                         $("#proc-select-option").append('<option data-pid="' + val.id + '">' + val.name + '</option>')
                     })
@@ -281,12 +281,12 @@
                     $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
                 })
             }
-            
+
             $(document).ready(loadAgentsList)
             $(document).ready(function() { $("#login-username").text(Cookies.get("username")) })
-            
+
             $("#agents-reload-btn").click(loadAgentsList)
-            
+
             $("#logout-btn").click(function(event) {
                 $.ajax({
                     url: apiPrefix + "/logout",
@@ -300,7 +300,7 @@
                 })
                 event.preventDefault()
             })
-            
+
             function updateSendTaskForm() {
                 $(".send-task-type-form").hide()
                 $("#task-submit-error").alert("close")
@@ -315,7 +315,7 @@
                 $("#old-agent-name").text(agent)
                 $("#new-agent-name").val(agent)
             }
-            
+
             function registerAgentBtnCallback() {
                 // We modify DOM while loading agent list. We can't register callback ahead-of-time because there is no .agent-btn yet.
                 $(".agent-btn").click(function(event) {
@@ -339,7 +339,7 @@
                     $(".agents-group-header").children(".fa-arrow-down").removeClass("fa-rotate-180")
                 })
             }
-            
+
             $("#send-task-type-select").change(updateSendTaskForm)
 
             $("#rename-submit").click(function(event) {
@@ -369,7 +369,7 @@
                     $("#rename-submit").text("Rename")
                 })
             })
-            
+
             $("#send-task-submit").click(function(event) {
                 var type = $("#send-task-type-select").val()
                 var payload = {}
@@ -403,7 +403,7 @@
                     }
                 }).done(function(data) {
                     $(".modal").modal("hide")
-                    
+
                     if (data.error) {
                         $("#result-status-code").text("Unknown")
                         $("#result-output").text("Error returned by server: " + data.msg)
@@ -423,13 +423,13 @@
                     } else {
                         msg = data.statusText
                     }
-                    
+
                     $("#task-submit-error").alert("close")
                     $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to submit task: ' + escapeHTML(msg) + '.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
                     $("#send-task-submit").text("Send")
                 })
             })
-            
+
             $("#send-task-modal").on("hidden.bs.modal", function(event){
                 if (sendTaskXHR != null) {
                     sendTaskXHR.abort()

@@ -1,14 +1,14 @@
 [Unit]
-Description=dutserver
+Description=sutrc protocol server
 After=network.target
 
 [Service]
 Type=notify
 NotifyAccess=all
-ExecStart=/usr/bin/dutserver server %i /var/lib/dutserver-%i/auth.db
+ExecStart=/usr/bin/sutserver server %i /var/lib/sutserver-%i/auth.db
 Restart=on-failure
 DynamicUser=yes
-StateDirectory=dutserver-%i
+StateDirectory=sutserver-%i
 TimeoutStartSec=10
 Environment="USING_SYSTEMD=1"
 

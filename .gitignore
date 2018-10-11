@@ -1,6 +1,0 @@
-Server
-dutserver
-*.db
-*.db-wal
-*.db-shm
-.idea/

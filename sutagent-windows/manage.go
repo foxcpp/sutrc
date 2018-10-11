@@ -25,7 +25,7 @@ package main
 import (
 	"fmt"
 	"github.com/denisbrodbeck/machineid"
-	"github.com/foxcpp/dutserver/agent"
+	"github.com/foxcpp/sutrc/agent"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -39,7 +39,7 @@ import (
 
 var elog debug.Log
 
-type dutService struct{}
+type sutService struct{}
 
 func runService(name string, isDebug bool) {
 	var err error
@@ -58,7 +58,7 @@ func runService(name string, isDebug bool) {
 	if isDebug {
 		run = debug.Run
 	}
-	err = run(name, &dutService{})
+	err = run(name, &sutService{})
 	if err != nil {
 		elog.Error(1, fmt.Sprintf("%s service failed: %v", name, err))
 		return
@@ -151,7 +151,7 @@ func installService(name, desc, id string) error {
 		return fmt.Errorf("failed generating machine ID: %s", err)
 	}
 	d1 := []byte(id + " " + mid)
-	err = ioutil.WriteFile("C:\\Windows\\dutpc.key", d1, 0640)
+	err = ioutil.WriteFile("C:\\Windows\\sutpc.key", d1, 0640)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func installService(name, desc, id string) error {
 		mgr.Config{
 			DisplayName: desc,
 			Description: "Implements remote control functionality and performs background longpolling, " +
-				"allowing remote procedure execution as needed by DUTServer according to internal protocol.",
+				"allowing remote procedure execution as needed by sutserver according to internal protocol.",
 			StartType: mgr.StartAutomatic},
 		"is", "auto-started")
 	if err != nil {
@@ -217,12 +217,12 @@ func removeService(name string) error {
 	return nil
 }
 
-func (m *dutService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
+func (m *sutService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
-	hwid, err := ioutil.ReadFile("C:\\Windows\\dutpc.key")
+	hwid, err := ioutil.ReadFile("C:\\Windows\\sutpc.key")
 	if err != nil {
-		const authKeyErr= "Failed to read authorization key:"
+		const authKeyErr = "Failed to read authorization key:"
 		elog.Error(1, authKeyErr+" "+err.Error())
 		log.Fatalln(authKeyErr, err)
 	}

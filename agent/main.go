@@ -155,8 +155,8 @@ func (c *Client) SendTaskResult(taskID int, result map[string]interface{}) error
 func errorMessage(resp *http.Response) string {
 	// We have two cases to handle:
 	// - Error at intermediate level (nginx)
-	//   This probably means dutserver is down or something. We have only status code in this case.
-	// - Error at dutserver level
+	//   This probably means server is down or something. We have only status code in this case.
+	// - Error at server level
 	//   We have error message in JSON.
 
 	if resp.Header.Get("Content-Type") == "application/json" {

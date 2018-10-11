@@ -27,7 +27,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/foxcpp/dutserver/agent"
+	"github.com/foxcpp/sutrc/agent"
 
 	"golang.org/x/text/encoding/charmap"
 )
