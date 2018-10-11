@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -24,7 +23,11 @@ func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusForbidden, "Authorization failure")
 			return
 		}
-		agentID := strings.Split(r.Header.Get("Authorization"), ":")[0]
+		agentID, err := db.GetAgentName(r.Header.Get("Authorization"))
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 		id, err := strconv.Atoi(r.URL.Query().Get("id"))
 		if err != nil {
 			return
@@ -86,6 +89,10 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 	target := r.URL.Query().Get("target")
 	if target == "" {
 		writeError(w, http.StatusBadRequest, "Missing target parameter")
+		return
+	}
+	if !db.AgentExists(target) {
+		writeError(w, http.StatusNotFound, "Agent doesn't exists")
 		return
 	}
 
@@ -164,7 +171,11 @@ func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.R
 }
 
 func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration) {
-	agentID := strings.Split(r.Header.Get("Authorization"), ":")[0]
+	agentID, err := db.GetAgentName(r.Header.Get("Authorization"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
 	taskMetaLock.Lock()
 	// This can be first time we see this Agent ID, allocate everything we need..
@@ -181,7 +192,9 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	// We 'register' agent as online only if it listens for tasks.
 	// Agent is expected to handle them asynchronously so it will be
 	// listening most of the time.
+	onlineAgentsLock.Lock()
 	onlineAgents[agentID] = true
+	onlineAgentsLock.Unlock()
 
 	log.Println(agentID, "is watching for tasks")
 
@@ -192,10 +205,11 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	select {
 	case <-time.After(timeout):
 		writeJson(w, map[string]interface{}{})
-		onlineAgents[agentID] = false
 	case task := <-tasksChan:
 		log.Println("Sending task", task["id"].(int), "to", agentID)
 		writeJson(w, task)
-		onlineAgents[agentID] = false
 	}
+	onlineAgentsLock.Lock()
+	onlineAgents[agentID] = false
+	onlineAgentsLock.Unlock()
 }

@@ -3,28 +3,34 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
-	"strings"
+	"sync"
 	"syscall"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var db *DB
 var agentsSelfregEnabled = false
 var onlineAgents map[string]bool
+var onlineAgentsLock sync.Mutex
 
 func main() {
 	if len(os.Args) == 1 {
-		fmt.Fprintln(os.Stderr, os.Args[0], "server PORT DBFILE")
-		fmt.Fprintln(os.Stderr, "\tLaunch server on PORT using DBFILE.")
-		fmt.Fprintln(os.Stderr, os.Args[0], "addaccount DBFILE NAME TYPE")
-		fmt.Fprintln(os.Stderr, "\tAdd client NAME as TYPE to DBFILE. Password will be readen from stdin. Type can be either 'agent' or 'admin'.")
-		fmt.Fprintln(os.Stderr, os.Args[0], "delaccount DBFILE NAME")
-		fmt.Fprintln(os.Stderr, "\tRemove client NAME from DBFILE.")
+		fmt.Println(os.Args[0], "server PORT DBFILE")
+		fmt.Println("\tLaunch server on PORT using DBFILE.")
+		fmt.Println(os.Args[0], "addaccount DBFILE TOKEN")
+		fmt.Println("\tAdd with token TOKEN to DBFILE.")
+		fmt.Println(os.Args[0], "remaccount DBFILE TOKEN")
+		fmt.Println("\tRemove account with TOKEN from DBFILE.")
+		fmt.Println(os.Args[0], "addagent DBFILE NAME HWID")
+		fmt.Println("\tAdd agent NAME with HWID to DBFILE.")
+		fmt.Println(os.Args[0], "remagent DBFILE NAME")
+		fmt.Println("\tRemove agent NAME from DBFILE.")
 		return
 	}
 
@@ -33,9 +39,13 @@ func main() {
 	case "server":
 		serverSubcommand()
 	case "addaccount":
-		addAccountSubcommand()
-	case "delaccount":
-		removeAccountSubcommand()
+		addAccountSubcmd()
+	case "remaccount":
+		remAccountSubcmd()
+	case "addagent":
+		addAgentSubcmd()
+	case "remagent":
+		remAgentSubcmd()
 	default:
 		fmt.Fprintln(os.Stderr, "Unknown subcommand.")
 		os.Exit(1)
@@ -129,14 +139,14 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		user := r.URL.Query().Get("user")
-		pass := r.URL.Query().Get("pass")
-		if user == "" || pass == "" {
-			writeError(w, http.StatusBadRequest, "Pass 'user' and 'pass' in query string")
+		name := r.URL.Query().Get("name")
+		hwid := r.URL.Query().Get("hwid")
+		if name == "" || hwid == "" {
+			writeError(w, http.StatusBadRequest, "Pass 'name' and 'hwid' in query string")
 			return
 		}
 
-		if err := db.AddAccount(user, pass, AcctAgent); err != nil {
+		if err := db.AddAgent(name, hwid); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
@@ -158,8 +168,41 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		writeJson(w, map[string]interface{}{"error": false, "agents": agents, "online": onlineAgentsL})
+	} else if r.Method == http.MethodPatch {
+		if !checkAdminAuth(r.Header) {
+			writeError(w, http.StatusForbidden, "Authorization failure")
+			return
+		}
+
+		oldId := r.URL.Query().Get("id")
+		newId := r.URL.Query().Get("newId")
+		if oldId == "" || newId == "" {
+			writeError(w, http.StatusBadRequest, "Pass 'id' and 'oldId' in query string.")
+			return
+		}
+
+		if !db.AgentExists(oldId) {
+			writeError(w, http.StatusNotFound, "Agent doesn't exists")
+			return
+		}
+
+		if err := db.RenameAgent(oldId, newId); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		taskMetaLock.Lock()
+		taskResults[newId] = taskResults[oldId]
+		delete(taskResults, oldId)
+		tasks[newId] = tasks[oldId]
+		delete(tasks, oldId)
+		taskMetaLock.Unlock()
+
+		onlineAgentsLock.Lock()
+		onlineAgents[newId] = onlineAgents[oldId]
+		delete(onlineAgents, oldId)
+		onlineAgentsLock.Unlock()
 	} else {
-		writeError(w, http.StatusMethodNotAllowed, "/agents only supports POST and GET")
+		writeError(w, http.StatusMethodNotAllowed, "/agents only supports POST, GET and PATCH")
 	}
 
 }
@@ -167,7 +210,7 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	user := r.URL.Query().Get("user")
 
-	if !db.CheckAuth(user, r.URL.Query().Get("pass"), AcctAdmin) {
+	if !db.CheckAuth(r.URL.Query().Get("token")) {
 		log.Println("Invalid login info submitted for", user, "from", r.RemoteAddr)
 		writeError(w, http.StatusForbidden, "Invalid credentials")
 		return
@@ -180,7 +223,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Initialized session for", user+"; token="+token[:6]+"...")
-	writeJson(w, map[string]interface{}{"error": false, "msg": "Logged in", "token": token})
+	writeJson(w, map[string]interface{}{"error": false, "token": token})
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -214,12 +257,7 @@ func writeError(w http.ResponseWriter, httpCode int, msg string) {
 }
 
 func checkAgentAuth(h http.Header) bool {
-	authParts := strings.Split(h.Get("Authorization"), ":")
-	if len(authParts) != 2 {
-		return false
-	}
-
-	return db.CheckAuth(authParts[0], authParts[1], AcctAgent)
+	return db.CheckAgentAuth(h.Get("Authorization"))
 }
 
 func checkAdminAuth(h http.Header) bool {

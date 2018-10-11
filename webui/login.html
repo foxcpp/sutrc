@@ -51,9 +51,8 @@
     </head>
     <body>
         <form class="login-form">
-            <input id="username" class="form-element form-control" placeholder="Username" autofocus>
-            <input id="password" type="password" class="form-element form-control" placeholder="Password">
-            <span class="form-note">dutserver WebUI 0.1</span>
+            <input id="token" type="password" class="form-element form-control" placeholder="Password">
+            <span class="form-note">dutserver WebUI 1.0-rc1-s</span>
             <button id="login-btn" class="clearfix form-element form-button btn btn-primary" type="submit">Login</button>
         </form>
 
@@ -70,11 +69,6 @@
             }
             
             $("#login-btn").click(function(event){
-                if ($("#username").val() == "") {
-                    $("#username").focus()
-                    event.preventDefault()
-                    return
-                }
                 if ($("#password").val() == "") {
                     $("#password").focus()
                     event.preventDefault()
@@ -86,12 +80,10 @@
                     url: apiPrefix + "/login",
                     dataType: "json",
                     data: {
-                        user: $("#username").val(),
-                        pass: $("#password").val()
+                        token: $("#token").val()
                     }
                 })
                 .done(function(data) {
-                    Cookies.set("username", $("#username").val()) // no, lol, you can't magically relogin to different user using this. this is only for visual purposes.
                     Cookies.set("token", data.token)
                     window.location = "dashboard.html"
                 })
@@ -102,7 +94,7 @@
                         msg = data.statusText
                     }
                     if (data.status == 403) {
-                        msg = "Incorrect username or password"
+                        msg = "Invalid password"
                     } else {
                         msg = "Internal server error: " + msg
                     }

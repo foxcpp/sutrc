@@ -15,7 +15,7 @@ Just forwards JSON objects between web clients and agents while
 providing simple access control.
 
 #### Web interface (client)
-_In [webui](webui) subdirectory.__
+_In [webui](webui) subdirectory._
 
 Written in JS and fully runs inside your browser. This allows us to not
 clutter dispatcher server with form logic and not to create additional
@@ -69,15 +69,8 @@ Typical task flow:
 Server provides means to prevent unauthorized access to agents through
 it. Clients are required to "log in" and get session token before
 doing anything. Agents authorize using simplified flow to make
-implementation simpler. They just pass name:secret pair with each
+implementation simpler. They just pass "secret token" with each
 request.
-
-Both clients and agents use the same user:pass pair scheme. Agent's
-"username" is used to refer to it in client interface and everywhere
-in code, while password (aka agent secret) makes it
-impossible for intruder to impersonate agent. Client credentials are
-just used to track "who did what" and to prevent random people touching
-agents.
 
 #### Communication protocol
 
@@ -113,7 +106,7 @@ HTTP status code is **always different from 200** if error is returned.
 
 #### Session management
 
-##### `GET /login?user=NAME&pass=PASS`
+##### `GET /login?token=PASS`
 Initiate session for specified user. Result contains
 
 **Response**
@@ -124,19 +117,15 @@ Initiate session for specified user. Result contains
 }
 ```
 
-**Doesn't works for agent accounts.**
-
 ##### `POST /logout`
-Pass token returned by `/login` in `Authorization` header to terminate
+Pass session token returned by `/login` in `Authorization` header to terminate
 session.
-
-**Doesn't works for agent accounts.**
 
 #### Admin-level
 
 Pass session token returned by `/login` in `Authorization` header.
 
-##### `GET /agents`
+#### `GET /agents`
 
 Returns known agent lists.
 
@@ -159,6 +148,10 @@ tasks (listening for them now).
 }
 ```
 
+#### `PATCH /agents?id=OLDID&newId=NEWID`
+
+Rename change name of agent with name OLDID to NEWID.
+
 #### `POST /tasks?target=AGENTID`
 **Longpooling endpoint.**
 
@@ -180,7 +173,7 @@ Note that `error=true` can be set by agent.
 Agents self-registration mode allows agents to automatically create
 accounts for themselves, making mass deployment a lot easier.
 
-##### `POST /agents?user=NAME&pass=PASS`
+##### `POST /agents?token=PASS`
 
 Called by client to create new agent account.
 Works only if `GET /agents_selfreg` returns 1.
@@ -328,14 +321,3 @@ it use different database file (`/var/lib/dutserver-PORT/auth.db`).
 ### Command-line utility how-to
 
 Server binary also acts as a console utility for database maintenance.
-
-```
-dutserver addaccount test.db agent1 agent
-```
-Create agent account `agent1` in DB `test.db`. Password will be read
-from stdin.
-
-```
-dutserver remove test.db agent1
-```
-Remove account `agent1` from DB stored in file `test.db`.

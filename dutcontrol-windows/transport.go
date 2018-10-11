@@ -32,17 +32,17 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-const baseURL = "https://hexawolf.me/dutcontrol/api"
+const baseURL = "http://localhost/api"
 
 var cmdEncoding = charmap.CodePage866
 
-func longPoll(id, key string) {
+func longPoll(hwid string) {
 	client := agent.NewClient(baseURL)
 	client.SupportedTaskTypes = map[string]bool{
 		"execute_cmd": true,
 		"proclist":    true,
 	}
-	client.UseAccount(id, key)
+	client.UseAccount(hwid)
 	for {
 		id, ttype, body, err := client.PollTasks()
 		if err != nil {

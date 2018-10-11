@@ -37,9 +37,8 @@
     <body>
         <nav class="navbar navbar-light">
             <a class="navbar-brand" href="#">dutserver</a>
-            
+
             <span class="navbar-text">
-                Logged in as <span id="login-username">NOBODY!?</span>
                 <button type="button" id="logout-btn" class="btn btn-light fas fa-sign-out-alt" aria-label="Refresh"></button>
             </span>
         </nav>
@@ -104,6 +103,26 @@
                 </div>
             </div>
         </div>
+        <div class="modal fade" id="rename-modal" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <header class="modal-header">
+                        <h5>Rename agent <span id="old-agent-name">...</span></h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </header>
+                    <div class="modal-body" id="rename-agent-form">
+                        <label for="new-agent-name">New agent name:</label>
+                        <input id="new-agent-name" class="form-control">
+                    </div>
+                    <footer class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button id="rename-submit" type="button" class="btn btn-primary">Rename</button>
+                    </footer>
+                </div>
+            </div>
+        </div>
         <main class="container-fluid">
             <header class="twoheader">
                 <h3 class="twoheader-left">Agents</h3>
@@ -131,6 +150,7 @@
             var sendTaskXHR
             var tasksListXHR
             var agentsUpdateXHR
+            var renameXHR
             
             function escapeHTML(text) {
                 return $('<div/>').text(text).html()
@@ -170,13 +190,13 @@
                         
                         if ($("#agents-group-" + group).length == 0) {
                             $("#agentslist").append('\
-                                <div>\
+                                <div class="agents-group-root">\
                                     <a role="button" href="#" class="twoheader styleless-link agents-group-header" data-toggle="collapse" data-target="#agents-group-' + group + '">\
                                         <span class="twoheader-left h5">' + groupName + '</span>\
                                         <span id="agents-group-' + group + '-counters" class="twoheader-left h6 agents-group-counter">(...)</span>\
                                         <span class="twoheader-right fas fa-arrow-down fa-lg" />\
                                     </a>\
-                                    <div class="agents' + group + '-group collapse agents-group" data-parent="#agentslist" id="agents-group-' + group + '" aria-expanded="false"></div>\
+                                    <div class="collapse agents-group" data-parent="#agentslist" id="agents-group-' + group + '" aria-expanded="false"></div>\
                                     <hr>\
                                 </div>')
                         }
@@ -193,6 +213,7 @@
                         } else {
                             disabledAttr = "disabled"
                         }
+                        console.log(group + ": " + groupsTotal.get(group) + " + 1")
                         groupsTotal.set(group, groupsTotal.get(group) + 1)
                         
                         $("#agents-group-" + group).append('\
@@ -201,15 +222,21 @@
                                 <button type="button" ' + disabledAttr + ' data-role="send-task" data-target="' + escapeHTML(val) + '" class="btn btn-outline-secondary agent-btn">\
                                     Send task\
                                 </button>\
+                                <button type="button" data-role="rename-agent" data-target="' + escapeHTML(val) + '" class="btn btn-outline-secondary agent-btn">\
+                                    Rename agent\
+                                </button>\
                             </figure>')
                     })
                     
                     groupsOnline.forEach(function(value, key) {
                         $("#agents-group-" + key + "-counters").text("(" + String(value) + " online, " + String(groupsTotal.get(key)) + " total)")
+
+                        console.log(key + " => " + groupsTotal.get(key))
                     })
                     
                     registerAgentBtnCallback()
                     $("#agents-reload-btn").children(":first").removeClass("fa-spin")
+                    $(".agents-group:not(:has(.agent-entry))").parent(".agents-group-root").remove()
                 }).fail(function(data) {
                     var msg = "???"
                     if (data.responseJSON != undefined) {
@@ -224,7 +251,7 @@
                 })
             }
             
-            window.setInterval(loadAgentsList, 5000)
+            //window.setInterval(loadAgentsList, 5000)
             
             function populateTaskList() {
                 $("#proc-select-option").append("<option>Loading processes list...</option>")
@@ -276,11 +303,17 @@
             
             function updateSendTaskForm() {
                 $(".send-task-type-form").hide()
+                $("#task-submit-error").alert("close")
                 var option = $("#send-task-type-select")[0].selectedOptions[0]
                 $("#" + option.dataset.target).show()
                 if (option.dataset.target == "kill-proc-form") {
                     populateTaskList()
                 }
+            }
+
+            function updateRenameForm() {
+                $("#old-agent-name").text(agent)
+                $("#new-agent-name").val(agent)
             }
             
             function registerAgentBtnCallback() {
@@ -293,6 +326,10 @@
                         updateSendTaskForm()
                         $("#send-task-modal").modal("show")
                     }
+                    if (event.currentTarget.dataset.role == "rename-agent") {
+                        updateRenameForm()
+                        $("#rename-modal").modal("show")
+                    }
                 })
                 $(".agents-group").on("show.bs.collapse", function(event) {
                     $(".agents-group-header").children(".fa-arrow-down").removeClass("fa-rotate-180")
@@ -304,6 +341,34 @@
             }
             
             $("#send-task-type-select").change(updateSendTaskForm)
+
+            $("#rename-submit").click(function(event) {
+                $("#rename-submit").text("...")
+                $.ajax({
+                    url: apiPrefix + "/agents?" + jQuery.param({id: agent, newId: $("#new-agent-name").val()}),
+                    method: "PATCH",
+                    headers: {
+                        "Authorization": Cookies.get("token")
+                    }
+                })
+                .done(function(data) {
+                    loadAgentsList()
+                    $("#rename-modal").modal("hide")
+                    $("#rename-submit").text("Rename")
+                })
+                .fail(function(data) {
+                    var msg = "???"
+                    if (data.responseJSON != undefined) {
+                        msg = data.responseJSON.msg
+                    } else {
+                        msg = data.statusText
+                    }
+
+                    $("#rename-agent-error").alert("close")
+                    $("#rename-agent-form").prepend('<div class="alert alert-danger alert-dismissible" id="rename-agent-error" role="alert">Failed to rename agent: ' + escapeHTML(msg) + '.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                    $("#rename-submit").text("Rename")
+                })
+            })
             
             $("#send-task-submit").click(function(event) {
                 var type = $("#send-task-type-select").val()
@@ -373,6 +438,12 @@
                 if (tasksListXHR != null) {
                     tasksListXHR.abort()
                     tasksListXHR = null
+                }
+            })
+            $("#rename-modal").on("hidden.bs.modal", function(event){
+                if (renameXHR != null) {
+                    renameXHR.abort()
+                    renameXHR = null
                 }
             })
         </script>

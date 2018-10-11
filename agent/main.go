@@ -63,8 +63,8 @@ func (c *Client) RegisterAgent(user, pass string) error {
 	return nil
 }
 
-func (c *Client) UseAccount(user, pass string) {
-	c.authHeader = user + ":" + pass
+func (c *Client) UseAccount(token string) {
+	c.authHeader = token
 }
 
 // PollTasks requests first task from server's queue.

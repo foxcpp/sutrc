@@ -34,7 +34,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -221,14 +220,13 @@ func removeService(name string) error {
 func (m *dutService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
-	data, err := ioutil.ReadFile("C:\\Windows\\dutpc.key")
+	hwid, err := ioutil.ReadFile("C:\\Windows\\dutpc.key")
 	if err != nil {
-		const authKeyErr = "Failed to read authorization key:"
+		const authKeyErr= "Failed to read authorization key:"
 		elog.Error(1, authKeyErr+" "+err.Error())
 		log.Fatalln(authKeyErr, err)
 	}
-	mid := strings.Split(string(data), " ")
-	go longPoll(mid[0], mid[1])
+	go longPoll(string(hwid))
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 	elog.Info(1, "")
 
