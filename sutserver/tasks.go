@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,7 +49,7 @@ func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
 			bodyJson["error"] = false
 		}
 
-		log.Println("Received task", id, "result from", agentID)
+		debugLog("Received task", id, "result from", agentID)
 
 		// taskResults[agentID] is created on task submit if it doesn't exists.
 		taskMetaLock.Lock()
@@ -58,7 +57,7 @@ func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
 		taskMetaLock.Unlock()
 		if c == nil {
 			// If channel doesn't exists - nobody is waiting for task result. Just drop it.
-			log.Println("Unexpected task", id, "result from", agentID)
+			debugLog("Unexpected task", id, "result from", agentID)
 			return
 		}
 		c <- bodyJson
@@ -173,7 +172,7 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Println("Added task", id, "for", target, "from", r.Header.Get("Authorization")[:6])
+		debugLog("Added task", id, "for", target, "from", r.Header.Get("Authorization")[:6])
 	}
 
 	for i, target := range targets {
@@ -192,10 +191,10 @@ func waitTaskResult(agentID string, taskID int, r *http.Request, timeout time.Du
 	taskMetaLock.Unlock()
 	select {
 	case res := <-taskResChan:
-		log.Println("Forwarding task", taskID, "result from", agentID, "to", r.Header.Get("Authorization")[:6])
+		debugLog("Forwarding task", taskID, "result from", agentID, "to", r.Header.Get("Authorization")[:6])
 		return res
 	case <-time.After(timeout):
-		log.Println("Timed out while waiting for task", taskID, "result from", agentID)
+		debugLog("Timed out while waiting for task", taskID, "result from", agentID)
 		taskMetaLock.Lock()
 		delete(taskResults[agentID], taskID)
 		taskMetaLock.Unlock()
@@ -230,7 +229,7 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	onlineAgents[agentID] = true
 	onlineAgentsLock.Unlock()
 
-	log.Println(agentID, "is watching for tasks")
+	debugLog(agentID, "is watching for tasks")
 
 	taskMetaLock.Lock()
 	tasksChan := tasks[agentID]
@@ -240,7 +239,7 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	case <-time.After(timeout):
 		writeJson(w, map[string]interface{}{})
 	case task := <-tasksChan:
-		log.Println("Sending task", task["id"].(int), "to", agentID)
+		debugLog("Sending task", task["id"].(int), "to", agentID)
 		writeJson(w, task)
 	}
 	onlineAgentsLock.Lock()

@@ -56,6 +56,14 @@ func main() {
 	}
 }
 
+// Can be set using `go build -ldflags "-X main.debugLog="true""`
+var debug string
+func debugLog(v ...interface{}) {
+	if debug == "true" { // -X flag can't handle non-string types
+		log.Println(v...)
+	}
+}
+
 func serverSubcommand() {
 	if len(os.Args) != 4 {
 		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "server PORT DBFILE")
