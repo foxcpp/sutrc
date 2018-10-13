@@ -150,8 +150,7 @@ func installService(name, desc, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed generating machine ID: %s", err)
 	}
-	d1 := []byte(id + " " + mid)
-	err = ioutil.WriteFile("C:\\Windows\\sutpc.key", d1, 0640)
+	err = ioutil.WriteFile("C:\\Windows\\sutpc.key", []byte(mid), 0640)
 	if err != nil {
 		return err
 	}

@@ -45,10 +45,10 @@ func NewClient(baseURL string) Client {
 	return Client{baseURL: baseURL, h: http.Client{}}
 }
 
-func (c *Client) RegisterAgent(user, pass string) error {
+func (c *Client) RegisterAgent(name, hwid string) error {
 	// It's not necessary to do GET /agents_selfreg, server will reject request
 	// anyway if registration is disabled.
-	req, err := http.NewRequest("POST", c.baseURL+"/agents?user="+url.QueryEscape(user)+"&pass="+url.QueryEscape(pass), nil)
+	req, err := http.NewRequest("POST", c.baseURL+"/agents?name="+url.QueryEscape(name)+"&hwid="+url.QueryEscape(hwid), nil)
 	if err != nil {
 		return fmt.Errorf("request create: %v", err)
 	}

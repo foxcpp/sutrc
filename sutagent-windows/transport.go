@@ -26,13 +26,14 @@ import (
 	"log"
 	"os/exec"
 	"syscall"
+	"time"
 
 	"github.com/foxcpp/sutrc/agent"
 
 	"golang.org/x/text/encoding/charmap"
 )
 
-const baseURL = "http://localhost/api"
+var baseURL string
 
 var cmdEncoding = charmap.CodePage866
 
@@ -50,6 +51,7 @@ func longPoll(hwid string) {
 			if id != -1 {
 				go client.SendTaskResult(id, map[string]interface{}{"error": true, "msg": err.Error()})
 			}
+			time.Sleep(30*time.Second)
 			continue
 		}
 		if id == -1 {
