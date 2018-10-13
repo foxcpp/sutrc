@@ -97,7 +97,7 @@ func serverSubcommand() {
 	http.HandleFunc(PathPrefix+"/logout", logoutHandler)
 	http.HandleFunc(PathPrefix+"/agents", agentsHandler)
 	http.HandleFunc(PathPrefix+"/agents_selfreg", agentsSelfregHandler)
-	http.Handle(PathPrefix+"/filedrop", filedropSrv)
+	http.Handle(PathPrefix+"/filedrop/", filedropSrv)
 
 	go func() {
 		log.Println("Listening on :" + port)

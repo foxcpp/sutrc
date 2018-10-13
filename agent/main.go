@@ -26,11 +26,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // Wrapper class that takes care of all boilerplate required for agent session.
@@ -125,6 +127,46 @@ func (c *Client) PollTasks() (id int, type_ string, body map[string]interface{},
 	}
 
 	return
+}
+
+func (c *Client) UploadFile(src io.Reader) (string, error) {
+	req, err := http.NewRequest("POST", c.baseURL + "/filedrop/agent_upload", src)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", c.authHeader)
+	resp, err := c.h.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode / 100 != 2 {
+		return "", errors.New("HTTP " + resp.Status)
+	}
+	urlBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(urlBytes), nil
+}
+
+func (c *Client) Download(url string) (io.ReadCloser, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if strings.HasPrefix(url, c.baseURL) {
+		req.Header.Set("Authorization", c.authHeader)
+	}
+	resp, err := c.h.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode / 100 != 2 {
+		resp.Body.Close()
+		return resp.Body, errors.New("HTTP " + resp.Status)
+	}
+	return resp.Body, nil
 }
 
 func (c *Client) SendTaskResult(taskID int, result map[string]interface{}) error {
