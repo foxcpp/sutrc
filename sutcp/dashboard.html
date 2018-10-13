@@ -10,6 +10,9 @@
         <title>SUT Control Panel - Dashboard</title>
 
         <style>
+            .navbar {
+                background-color: #eee;
+            }
             .agent-entry {
                 margin-top: 5px;
                 margin-bottom: 5px;
@@ -66,7 +69,6 @@
                             <select class="form-control" id="send-task-power-option">
                                 <option data-target="shutdown /s /t 1">Shutdown</option>
                                 <option data-target="shutdown /r /t 1">Reboot</option>
-                                <option data-target="shutdown /h /t 1">Hibernate</option>
                             </select>
                         </div>
                         <div class="send-task-type-form" id="kill-proc-form" style="display: none">
@@ -143,10 +145,16 @@
         <script src="js/popper.min.js"></script>
         <script src="js/bootstrap.min.js"></script>
         <script src="js/js.cookie.js"></script>
+        
+        <script src="js/sutserver.js"></script>
+        <script src="js/sutcp.js"></script>
 
         <script>
-            var apiPrefix = "api"
             var agent = ""
+            
+            // These global objects store started ajax requests so we can
+            // ensure there there is only one of any and we are able to abort 
+            // them if user, for example, closes dialog before finish.
             var sendTaskXHR
             var tasksListXHR
             var agentsUpdateXHR
@@ -162,18 +170,10 @@
                     agentsUpdateXHR = null
                 }
                 $("#agents-reload-btn").children(":first").addClass("fa-spin")
-                agentsUpdateXHR = $.ajax({
-                    url: apiPrefix + "/agents",
-                    method: "GET",
-                    headers: {
-                        "Authorization": Cookies.get("token")
-                    }
-                }).done(function(data) {
+                agentsUpdateXHR = getAgentsList(function (agents, online) {
                     $("#agents-load-error").alert("close")
                     $(".agents-group").children().remove()
-                    var groupsOnline = new Map()
-                    var groupsTotal = new Map()
-                    data.agents.forEach(function(val) {
+                    agents.forEach(function(val) {
                         splitten = val.split("-")
                         var group
                         var name
@@ -188,65 +188,19 @@
                             name = splitten.slice(1).join("-")
                         }
 
-                        if ($("#agents-group-" + group).length == 0) {
-                            $("#agentslist").append('\
-                                <div class="agents-group-root">\
-                                    <a role="button" href="#" class="twoheader styleless-link agents-group-header" data-toggle="collapse" data-target="#agents-group-' + group + '">\
-                                        <span class="twoheader-left h5">' + groupName + '</span>\
-                                        <span id="agents-group-' + group + '-counters" class="twoheader-left h6 agents-group-counter">(...)</span>\
-                                        <span class="twoheader-right fas fa-arrow-down fa-lg" />\
-                                    </a>\
-                                    <div class="collapse agents-group" data-parent="#agentslist" id="agents-group-' + group + '" aria-expanded="false"></div>\
-                                    <hr>\
-                                </div>')
+                        if (!groupPresentInDOM(group)) {
+                            addGroupToDOM(groupName, group)
                         }
-                        if (!groupsOnline.has(group)) {
-                            groupsOnline.set(group, 0)
-                            groupsTotal.set(group, 0)
-                        }
-
-                        var disabledAttr = ""
-                        var title = escapeHTML(val)
-                        if (data.online[val]) {
-                            groupsOnline.set(group, groupsOnline.get(group) + 1)
-                            title = title + " (online)"
-                        } else {
-                            disabledAttr = "disabled"
-                        }
-                        console.log(group + ": " + groupsTotal.get(group) + " + 1")
-                        groupsTotal.set(group, groupsTotal.get(group) + 1)
-
-                        $("#agents-group-" + group).append('\
-                            <figure class="agent-entry">\
-                                <span class="agent-name clearfix">' + title + '</span>\
-                                <button type="button" ' + disabledAttr + ' data-role="send-task" data-target="' + escapeHTML(val) + '" class="btn btn-outline-secondary agent-btn">\
-                                    Send task\
-                                </button>\
-                                <button type="button" data-role="rename-agent" data-target="' + escapeHTML(val) + '" class="btn btn-outline-secondary agent-btn">\
-                                    Rename agent\
-                                </button>\
-                            </figure>')
-                    })
-
-                    groupsOnline.forEach(function(value, key) {
-                        $("#agents-group-" + key + "-counters").text("(" + String(value) + " online, " + String(groupsTotal.get(key)) + " total)")
-
-                        console.log(key + " => " + groupsTotal.get(key))
+                        
+                        addAgentToDOM(group, val, online[val])
                     })
 
                     registerAgentBtnCallback()
                     $("#agents-reload-btn").children(":first").removeClass("fa-spin")
-                    $(".agents-group:not(:has(.agent-entry))").parent(".agents-group-root").remove()
-                }).fail(function(data) {
-                    var msg = "???"
-                    if (data.responseJSON != undefined) {
-                        msg = data.responseJSON.msg
-                    } else {
-                        msg = data.statusText
-                    }
-
-                    $("#agents-load-error").alert("close")
-                    $("#agentslist").prepend('<div class="alert alert-danger alert-dismissible" id="agents-load-error" role="alert">Failed to update agents list: ' + escapeHTML(msg) + '.')
+                    removeEmptyGroups()
+                    updateGroupCounts()
+                }, function(msg) {
+                    showAlert("agents-load-error", "#agentslist", "Failed to update agents list: " + msg)
                     $("#agents-reload-btn").children(":first").removeClass("fa-spin")
                 })
             }
@@ -255,30 +209,18 @@
 
             function populateTaskList() {
                 $("#proc-select-option").append("<option>Loading processes list...</option>")
-                tasksListXHR = $.ajax({
-                    url: apiPrefix + "/tasks?" + jQuery.param({target: agent}),
-                    method: "POST",
-                    data: JSON.stringify({
-                        "type": "proclist"
-                    }),
-                    headers: {
-                        "Authorization": Cookies.get("token")
-                    }
-                }).done(function(data) {
+                tasksListXHR = submitTask(agent, {type: "proclist"}, function (result) {
                     $("#proc-select-option").children().remove()
-                    if (data == null || data == undefined || data.procs == undefined) {
-                        $("#task-submit-error").alert("close")
-                        $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                    if (result.procs === undefined) {
+                        showAlert("task-submit-error", "#send-task-form", "Failed to load process list from agent: no list present")
                         return
                     }
-
                     data.procs.forEach(function(val){
                         $("#proc-select-option").append('<option data-pid="' + val.id + '">' + val.name + '</option>')
                     })
-                }).fail(function(data) {
+                }, function (msg) {
                     $("#proc-select-option").children().remove()
-                    $("#task-submit-error").alert("close")
-                    $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to load process list from agent.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                    showAlert("task-submit-error", "#send-task-form", "Failed to load process list from agent: " + msg)
                 })
             }
 
@@ -344,28 +286,12 @@
 
             $("#rename-submit").click(function(event) {
                 $("#rename-submit").text("...")
-                $.ajax({
-                    url: apiPrefix + "/agents?" + jQuery.param({id: agent, newId: $("#new-agent-name").val()}),
-                    method: "PATCH",
-                    headers: {
-                        "Authorization": Cookies.get("token")
-                    }
-                })
-                .done(function(data) {
+                renameXHR = renameAgent(agent, $("#new-agent-name").val(), function() {
                     loadAgentsList()
                     $("#rename-modal").modal("hide")
                     $("#rename-submit").text("Rename")
-                })
-                .fail(function(data) {
-                    var msg = "???"
-                    if (data.responseJSON != undefined) {
-                        msg = data.responseJSON.msg
-                    } else {
-                        msg = data.statusText
-                    }
-
-                    $("#rename-agent-error").alert("close")
-                    $("#rename-agent-form").prepend('<div class="alert alert-danger alert-dismissible" id="rename-agent-error" role="alert">Failed to rename agent: ' + escapeHTML(msg) + '.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                }, function(msg) {
+                    showAlert("rename-agent-error", "#rename-agent-form", "Failed to rename agent: " + msg)
                     $("#rename-submit").text("Rename")
                 })
             })
@@ -394,38 +320,19 @@
                         break;
                 }
                 $("#send-task-submit").text("Waiting for reply...")
-                sendTaskXHR = $.ajax({
-                    url: apiPrefix + "/tasks?" + jQuery.param({target: agent}),
-                    method: "POST",
-                    data: JSON.stringify(payload),
-                    headers: {
-                        "Authorization": Cookies.get("token")
-                    }
-                }).done(function(data) {
+                sendTaskXHR = submitTask(agent, payload, function (result) {
                     $(".modal").modal("hide")
-
                     if (data.error) {
-                        $("#result-status-code").text("Unknown")
-                        $("#result-output").text("Error returned by server: " + data.msg)
-                    } else if (Object.keys(data).length == 0) {
-                        $("#result-status-code").text("Unknown")
-                        $("#result-output").text("Timed out while waiting for agent response.")
+                        $("#result-status-code").text("Errored")
+                        $("#result-output").text(result.msg)
                     } else {
-                        $("#result-status-code").text(data.status_code)
-                        $("#result-output").text(data.output)
+                        $("#result-status-code").text(result.status_code)
+                        $("#result-output").text(result.output)
                     }
                     $("#result-modal").modal("show")
                     $("#send-task-submit").text("Send")
-                }).fail(function(data) {
-                    var msg = "???"
-                    if (data.responseJSON != undefined) {
-                        msg = data.responseJSON.msg
-                    } else {
-                        msg = data.statusText
-                    }
-
-                    $("#task-submit-error").alert("close")
-                    $("#send-task-form").prepend('<div class="alert alert-danger alert-dismissible" id="task-submit-error" role="alert">Failed to submit task: ' + escapeHTML(msg) + '.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                }, function(msg) {
+                    showAlert("task-submit-error", "#send-task-form", "Failed to submit task: " + msg)
                     $("#send-task-submit").text("Send")
                 })
             })

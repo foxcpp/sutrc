@@ -1,5 +1,5 @@
 body {
-    background-color: #eee;
+    background-color: #fff;
 }
 hr {
     margin-top: 5px;
@@ -16,6 +16,8 @@ figure {
 }
 .btn, .modal-content, .form-control {
     border-radius: 0 !important;
+    margin-left: 5px;
+    margin-right: 5px;
 }
 .btn-transparent {
     background: none;
@@ -25,6 +27,15 @@ figure {
 }
 .btn-transparent:focus {
     box-shadow: none;
+}
+.btn-dim {
+    color: #bbb;
+    transition: color 0.15s;
+}
+.btn-dim:hover {
+    background: none;
+    color: #222;
+    transition: color 0.15s;
 }
 .container-fluid {
     padding-top: 25px;

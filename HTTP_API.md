@@ -67,7 +67,8 @@ minute instead of 26 seconds.
 }
 ```
 
-Note that `error=true` can be set by agent.
+Note that `error=true` can be set by agent. In this case it will reported
+with `502 Bad Gateway` code.
 
 #### Agents self-registration
 
