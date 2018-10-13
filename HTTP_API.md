@@ -48,11 +48,15 @@ tasks (listening for them now).
 
 Rename change name of agent with name OLDID to NEWID.
 
-#### `POST /tasks?target=AGENTID`
+#### `POST /tasks?target=AGENTS`
 **Longpooling endpoint.**
 
-Enqueue task for agent `AGENTID` and wait for result from agent.
-Pass event object in request body.
+Send task to agents `AGENTS` (it is comma-separated list of agent IDs)
+and wait for result **from all agents**.
+
+Results object returned by agents will be added to `"results"` in order
+same as `target` argument. Additionally each object will include
+`"target"` field set to agent's ID. Check example.
 
 You can override default result waiting timeout (26 seconds) by passing
 different value in query string,
@@ -62,13 +66,21 @@ minute instead of 26 seconds.
 **Response**
 ```json
 {
-    "error": true or false,
-    other result object fields (depending on task type)
+    "error": false,
+    "results": [
+        {
+            "error": true or false,
+            "target": "agentA",
+            result object from agentA
+        },
+        {
+            "error": true or false,
+            "target": "agentA",
+            result object from agentA
+        }
+    ]
 }
 ```
-
-Note that `error=true` can be set by agent. In this case it will reported
-with `502 Bad Gateway` code.
 
 #### Agents self-registration
 

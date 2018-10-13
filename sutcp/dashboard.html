@@ -59,7 +59,7 @@
                         <select class="form-control" id="send-task-type-select">
                             <option data-target="execute-command-form">Execute Command</option>
                             <option data-target="power-control-form">Power Control</option>
-                            <option data-target="kill-proc-form">Kill Process</option>
+                            <option id="kill-proc-option" data-target="kill-proc-form">Kill Process</option>
                         </select>
                         <div class="send-task-type-form" id="execute-command-form">
                             <label for="send-task-command">Command:</label>
@@ -95,9 +95,13 @@
                         </button>
                     </header>
                     <div class="modal-body">
-                        Status: <span id="result-status-code">???</span>
-                        <pre id="result-output">
-                        </pre>
+                        <div id="single-result">
+                            Status: <span id="result-status-code">???</span>
+                            <pre id="result-output">
+                            </pre>
+                        </div>
+                        <dl id="broadcast-result">
+                        </dl>
                     </div>
                     <footer class="modal-footer">
                         <button data-dismiss="modal" type="button" class="btn btn-primary">OK</button>
@@ -150,7 +154,8 @@
         <script src="js/sutcp.js"></script>
 
         <script>
-            var agent = ""
+            var target = ""
+            var broadcast = false
             
             // These global objects store started ajax requests so we can
             // ensure there there is only one of any and we are able to abort 
@@ -172,7 +177,7 @@
                 $("#agents-reload-btn").children(":first").addClass("fa-spin")
                 agentsUpdateXHR = getAgentsList(function (agents, online) {
                     $("#agents-load-error").alert("close")
-                    $(".agents-group").children().remove()
+                    $(".agents-group").children(".agent-entry").remove()
                     agents.forEach(function(val) {
                         splitten = val.split("-")
                         var group
@@ -199,6 +204,11 @@
                     $("#agents-reload-btn").children(":first").removeClass("fa-spin")
                     removeEmptyGroups()
                     updateGroupCounts()
+
+                    var groups = $(".agents-group")
+                    for (var i = 0; i < groups.length; i++) {
+                        $(groups[i]).children(".broadcast-btn").attr("disabled", $(groups[i]).children(".online-agent").length == 0)
+                    }
                 }, function(msg) {
                     showAlert("agents-load-error", "#agentslist", "Failed to update agents list: " + msg)
                     $("#agents-reload-btn").children(":first").removeClass("fa-spin")
@@ -209,13 +219,13 @@
 
             function populateTaskList() {
                 $("#proc-select-option").append("<option>Loading processes list...</option>")
-                tasksListXHR = submitTask(agent, {type: "proclist"}, function (result) {
+                tasksListXHR = submitTask(target, {type: "proclist"}, function (result) {
                     $("#proc-select-option").children().remove()
-                    if (result.procs === undefined) {
+                    if (result.results[0].procs === undefined) {
                         showAlert("task-submit-error", "#send-task-form", "Failed to load process list from agent: no list present")
                         return
                     }
-                    data.procs.forEach(function(val){
+                    result.results[0].procs.forEach(function(val){
                         $("#proc-select-option").append('<option data-pid="' + val.id + '">' + val.name + '</option>')
                     })
                 }, function (msg) {
@@ -244,6 +254,15 @@
             })
 
             function updateSendTaskForm() {
+                if (broadcast) {
+                    if ($("#kill-proc-option").css("display") != "none") {
+                        $("#send-task-type-select").prop("selectedIndex", 0)
+                        $("#kill-proc-option").hide()
+                    }
+                } else {
+                    $("#kill-proc-option").show()
+                }
+
                 $(".send-task-type-form").hide()
                 $("#task-submit-error").alert("close")
                 var option = $("#send-task-type-select")[0].selectedOptions[0]
@@ -254,16 +273,17 @@
             }
 
             function updateRenameForm() {
-                $("#old-agent-name").text(agent)
-                $("#new-agent-name").val(agent)
+                $("#old-agent-name").text(target)
+                $("#new-agent-name").val(target)
             }
 
             function registerAgentBtnCallback() {
                 // We modify DOM while loading agent list. We can't register callback ahead-of-time because there is no .agent-btn yet.
                 $(".agent-btn").click(function(event) {
-                    agent = event.currentTarget.dataset.target
+                    target = event.currentTarget.dataset.target
                     if (event.currentTarget.dataset.role == "send-task") {
-                        $("#send-task-modal-title").text("Send task to agent " + agent)
+                        broadcast = false
+                        $("#send-task-modal-title").text("Send task to agent " + target)
 
                         updateSendTaskForm()
                         $("#send-task-modal").modal("show")
@@ -272,6 +292,12 @@
                         updateRenameForm()
                         $("#rename-modal").modal("show")
                     }
+                })
+                $(".broadcast-btn").click(function(event) {
+                    broadcast = true
+                    target = groupOnlineAgents(event.target.dataset.target).join(",")
+                    updateSendTaskForm()
+                    $("#send-task-modal").modal("show")
                 })
                 $(".agents-group").on("show.bs.collapse", function(event) {
                     $(".agents-group-header").children(".fa-arrow-down").removeClass("fa-rotate-180")
@@ -286,7 +312,7 @@
 
             $("#rename-submit").click(function(event) {
                 $("#rename-submit").text("...")
-                renameXHR = renameAgent(agent, $("#new-agent-name").val(), function() {
+                renameXHR = renameAgent(target, $("#new-agent-name").val(), function() {
                     loadAgentsList()
                     $("#rename-modal").modal("hide")
                     $("#rename-submit").text("Rename")
@@ -320,16 +346,12 @@
                         break;
                 }
                 $("#send-task-submit").text("Waiting for reply...")
-                sendTaskXHR = submitTask(agent, payload, function (result) {
-                    $(".modal").modal("hide")
-                    if (data.error) {
-                        $("#result-status-code").text("Errored")
-                        $("#result-output").text(result.msg)
+                sendTaskXHR = submitTask(target, payload, function (result) {
+                    if (!broadcast) {
+                        showTaskSendResult(result)
                     } else {
-                        $("#result-status-code").text(result.status_code)
-                        $("#result-output").text(result.output)
+                        showTaskBroadcastResult(result)
                     }
-                    $("#result-modal").modal("show")
                     $("#send-task-submit").text("Send")
                 }, function(msg) {
                     showAlert("task-submit-error", "#send-task-form", "Failed to submit task: " + msg)
@@ -353,6 +375,53 @@
                     renameXHR = null
                 }
             })
+
+            function showTaskSendResult(result) {
+                $("#broadcast-result").hide()
+                $("#single-result").show()
+
+                if (result.error) {
+                    $("#result-status-code").text("Errored (server)")
+                    $("#result-output").text(result.msg)
+                } else if (result.results[0].error) {
+                    $("#result-status-code").text("Errored (agent)")
+                    $("#result-output").text(result.results[0].msg)
+                } else {
+                    $("#result-status-code").text(result.results[0].status_code)
+                    $("#result-output").text(result.results[0].output)
+                }
+                $(".modal").modal("hide")
+                $("#result-modal").modal("show")
+            }
+
+            function showTaskBroadcastResult(result) {
+                $("#broadcast-result").show()
+                $("#single-result").hide()
+
+                $("#broadcast-result").children().remove()
+
+                var res = result.results
+                for (var i = 0; i < res.length; i++) {
+                    var status
+                    var output
+                    if (res[i].error) {
+                        status = "Errored (agent)"
+                        output = res[i].msg
+                    } else {
+                        status = res[i].status_code
+                        output = res[i].output
+                    }
+
+                    $("#broadcast-result").append('\
+                            <b>' + res[i].target + '</b>\
+                            <div>\
+                                Status: <span>' +  status + '</span>\
+                                <pre>' + output + '</pre>\
+                            </div>')
+                }
+                $(".modal").modal("hide")
+                $("#result-modal").modal("show")
+            }
         </script>
     </body>
 </html>

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -49,12 +50,15 @@ func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
 			bodyJson["error"] = false
 		}
 
+		log.Println("Received task", id, "result from", agentID)
+
 		// taskResults[agentID] is created on task submit if it doesn't exists.
 		taskMetaLock.Lock()
 		c := taskResults[agentID][id]
 		taskMetaLock.Unlock()
 		if c == nil {
 			// If channel doesn't exists - nobody is waiting for task result. Just drop it.
+			log.Println("Unexpected task", id, "result from", agentID)
 			return
 		}
 		c <- bodyJson
@@ -86,13 +90,9 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func acceptTask(w http.ResponseWriter, r *http.Request) {
-	target := r.URL.Query().Get("target")
-	if target == "" {
+	targetsStr := r.URL.Query().Get("target")
+	if targetsStr == "" {
 		writeError(w, http.StatusBadRequest, "Missing target parameter")
-		return
-	}
-	if !db.AgentExists(target) {
-		writeError(w, http.StatusNotFound, "Agent doesn't exists")
 		return
 	}
 	timeoutStr := r.URL.Query().Get("timeout")
@@ -123,61 +123,85 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskMetaLock.Lock()
+	targets := strings.Split(targetsStr, ",")
+	responses := make([]map[string]interface{}, len(targets))
+	taskIds := make([]int, len(targets))
+	for i, target := range targets {
+		taskCpy := make(map[string]interface{})
+		for k, v := range task {
+			taskCpy[k] = v
+		}
 
-	// This can be first time we see this Agent ID, allocate everything we need.
-	if _, prs := tasks[target]; !prs {
-		// Leave enough space to buffer few tasks in case of
-		// "lagging" agent of network.
-		tasks[target] = make(chan map[string]interface{}, 16)
+		if !db.AgentExists(target) {
+			responses[i] = map[string]interface{}{"error": true, "msg": "Agent doesn't exists"}
+		}
+
+		taskMetaLock.Lock()
+
+		// This can be first time we see this Agent ID, allocate everything we need.
+		if _, prs := tasks[target]; !prs {
+			// Leave enough space to buffer few tasks in case of
+			// "lagging" agent of network.
+			tasks[target] = make(chan map[string]interface{}, 16)
+		}
+		if _, prs := taskResults[target]; !prs {
+			taskResults[target] = make(map[int]chan map[string]interface{})
+		}
+
+		// "Allocate" task ID.
+		id := nextTaskID
+		nextTaskID++
+		taskIds[i] = id
+
+		// Prepare storage for result.
+		taskResults[target][id] = make(chan map[string]interface{})
+
+		tasksChan := tasks[target]
+		taskMetaLock.Unlock()
+
+		taskCpy["id"] = id
+		buf, err = json.Marshal(task)
+		if err != nil {
+			responses[i] = map[string]interface{}{"error": true, "msg": "Internal error: " + err.Error()}
+			return
+		}
+
+		select {
+		case tasksChan <- taskCpy:
+		default:
+			responses[i] = map[string]interface{}{"error": true, "msg": "Queue is overflowed. Check agent."}
+			return
+		}
+
+		log.Println("Added task", id, "for", target, "from", r.Header.Get("Authorization")[:6])
 	}
-	if _, prs := taskResults[target]; !prs {
-		taskResults[target] = make(map[int]chan map[string]interface{})
+
+	for i, target := range targets {
+		if responses[i] == nil {
+			responses[i] = waitTaskResult(target, taskIds[i], r, timeout)
+			responses[i]["target"] = target
+		}
 	}
 
-	// "Allocate" task ID.
-	id := nextTaskID
-	nextTaskID++
-
-	// Prepare storage for result.
-	taskResults[target][id] = make(chan map[string]interface{})
-
-	tasksChan := tasks[target]
-	taskMetaLock.Unlock()
-
-	task["id"] = id
-	buf, err = json.Marshal(task)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	select {
-	case tasksChan <- task:
-	default:
-		writeError(w, http.StatusServiceUnavailable, "Task queue is overflowed. Check agent.")
-		return
-	}
-
-	log.Println("Added task", id, "for", target, "from", r.Header.Get("Authorization")[:6])
-	waitTaskResult(w, target, id, r, timeout)
+	writeJson(w, map[string]interface{}{"error": false, "results": responses})
 }
 
-func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.Request, timeout time.Duration) {
+func waitTaskResult(agentID string, taskID int, r *http.Request, timeout time.Duration) map[string]interface{} {
 	taskMetaLock.Lock()
 	taskResChan := taskResults[agentID][taskID]
 	taskMetaLock.Unlock()
 	select {
+	case res := <-taskResChan:
+		log.Println("Forwarding task", taskID, "result from", agentID, "to", r.Header.Get("Authorization")[:6])
+		return res
 	case <-time.After(timeout):
 		log.Println("Timed out while waiting for task", taskID, "result from", agentID)
-		writeError(w, http.StatusGatewayTimeout, "Time out while waiting for task result")
 		taskMetaLock.Lock()
 		delete(taskResults[agentID], taskID)
 		taskMetaLock.Unlock()
-	case res := <-taskResChan:
-		log.Println("Forwarding task", taskID, "result from", agentID, "to", r.Header.Get("Authorization")[:6])
-		writeJson(w, res)
+		return map[string]interface{}{"error": true, "msg": "Time out while waiting for task result"}
 	}
+	return nil
 }
 
 func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration) {
