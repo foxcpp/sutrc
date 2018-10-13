@@ -95,6 +95,16 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Agent doesn't exists")
 		return
 	}
+	timeoutStr := r.URL.Query().Get("timeout")
+	timeout := 26 * time.Second
+	if timeoutStr != "" {
+		secs, err := strconv.Atoi(timeoutStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid timeout value")
+			return
+		}
+		timeout = time.Duration(secs) * time.Second
+	}
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -150,7 +160,7 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Added task", id, "for", target, "from", r.Header.Get("Authorization")[:6])
-	waitTaskResult(w, target, id, r, 5*time.Second)
+	waitTaskResult(w, target, id, r, timeout)
 }
 
 func waitTaskResult(w http.ResponseWriter, agentID string, taskID int, r *http.Request, timeout time.Duration) {

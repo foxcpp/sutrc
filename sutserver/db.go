@@ -21,7 +21,7 @@ type DB struct {
 	renameAgent      *sql.Stmt
 	checkAgentByHWID *sql.Stmt
 	checkAgentByName *sql.Stmt
-	getAgentName 	 *sql.Stmt
+	getAgentName     *sql.Stmt
 
 	// Session management
 	initSession  *sql.Stmt

@@ -8,11 +8,15 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 
+	"github.com/foxcpp/filedrop"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+const PathPrefix = "/sutrc/api"
 
 var db *DB
 var agentsSelfregEnabled = false
@@ -72,16 +76,20 @@ func serverSubcommand() {
 	}
 	defer db.Close()
 
+	filedropSrv := startFiledrop(DBFile)
+	defer filedropSrv.Close()
+
 	onlineAgents = make(map[string]bool)
 	taskResults = make(map[string]map[int]chan map[string]interface{})
 	tasks = make(map[string]chan map[string]interface{})
 
-	http.HandleFunc("/tasks", tasksHandler)
-	http.HandleFunc("/task_result", tasksResultHandler)
-	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/logout", logoutHandler)
-	http.HandleFunc("/agents", agentsHandler)
-	http.HandleFunc("/agents_selfreg", agentsSelfregHandler)
+	http.HandleFunc(PathPrefix+"/tasks", tasksHandler)
+	http.HandleFunc(PathPrefix+"/task_result", tasksResultHandler)
+	http.HandleFunc(PathPrefix+"/login", loginHandler)
+	http.HandleFunc(PathPrefix+"/logout", logoutHandler)
+	http.HandleFunc(PathPrefix+"/agents", agentsHandler)
+	http.HandleFunc(PathPrefix+"/agents_selfreg", agentsSelfregHandler)
+	http.Handle(PathPrefix+"/filedrop", filedropSrv)
 
 	go func() {
 		log.Println("Listening on :" + port)
@@ -102,6 +110,31 @@ func serverSubcommand() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
 	<-sig
+}
+
+func startFiledrop(DBFile string) *filedrop.Server {
+	filedropConf := filedrop.Default
+	filedropConf.StorageDir = filepath.Join(filepath.Dir(DBFile), "filedrop")
+	filedropConf.DB.Driver = "sqlite3"
+	filedropConf.DB.DSN = DBFile
+	filedropConf.Limits.MaxUses = 5
+	filedropConf.Limits.MaxFileSize = 32 * 1024 * 1024 // 32 MiB
+	filedropConf.Limits.MaxStoreSecs = 3600            // 1 hour
+	filedropConf.HTTPSUpstream = true
+	filedropConf.UploadAuth.Callback = func(r *http.Request) bool {
+		return checkAdminAuth(r.Header) || checkAgentAuth(r.Header)
+	}
+	filedropConf.DownloadAuth.Callback = func(r *http.Request) bool {
+		return checkAdminAuth(r.Header) || checkAgentAuth(r.Header)
+	}
+	if err := os.MkdirAll(filedropConf.StorageDir, 0777); err != nil {
+		log.Fatalln("Failed to create filedrop storage dir:", err)
+	}
+	filedropSrv, err := filedrop.New(filedropConf)
+	if err != nil {
+		log.Fatalln("Failed to start filedrop:", err)
+	}
+	return filedropSrv
 }
 
 func agentsSelfregHandler(w http.ResponseWriter, r *http.Request) {

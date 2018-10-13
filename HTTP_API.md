@@ -54,6 +54,11 @@ Rename change name of agent with name OLDID to NEWID.
 Enqueue task for agent `AGENTID` and wait for result from agent.
 Pass event object in request body.
 
+You can override default result waiting timeout (26 seconds) by passing
+different value in query string,
+like: `POST /tasks?target=AGENTID&timeout=60` will wait for a
+minute instead of 26 seconds.
+
 **Response**
 ```json
 {
@@ -173,6 +178,7 @@ Task object:
     "type": "proclist"
 }
 ```
+
 Task result object:
 ```
 {
@@ -186,5 +192,100 @@ Task result object:
             "name": "hl2.exe"
         }
     ]
+}
+```
+
+#### Directory contents query
+
+**JSON type string:** `"dircontents"`
+
+Agent should return contents of filesystem directory specified in `"dir"` field.
+`"dir"` is always an absolute path.
+
+**Example**
+Task object:
+```
+{
+    "id": 2343,
+    "dir": "C:\Windows\system32"
+}
+```
+
+Task result object:
+```
+{
+    "contents": [
+        {
+            "name": "explorer.exe",
+            "dir": false,
+            "fullpath": "C:\Windows\system32\explorer.exe"
+        },
+        {
+            "name": "drivers",
+            "dir": true,
+            "fullpath": "C:\Windows\system32\drivers"
+        },
+        ...
+    ]
+}
+```
+
+#### Download file request
+
+**JSON type string:** `"downloadfile"`
+
+Agent should download file from location specified by `"url"` field and save it to path
+in `"out"` field. Task result should be empty unless error is happened (in this
+case use standard error reporting scheme).
+
+It's recommended for clients to increase default result waiting timeout
+to give agent enough time to download file.
+
+**Example:**
+Task object:
+```
+{
+    "id": 2344,
+    "type": "downloadfile",
+    "url": "http://.../sutrc/filedrop/5cb1f372-ced2-11e8-9ce3-b083fe9824ac/hosts"
+    "out": "C:\\Windows\\system32\\drivers\\etc\\hosts"
+}
+```
+
+Task result object:
+```
+{}
+```
+
+#### Upload file request
+
+**JSON type string:** `"uploadfile"`
+
+This is reverse of download file request. Agent should upload file from location specified by
+`"path"` and return URL assigned by server in result object (see
+[filedrop](github.com/foxcpp/filedrop) server documentation for details).
+
+It's recommended for clients to increase default result waiting timeout
+to give agent enough time to upload file.
+
+**Filedrop server limits**
+Max link uses: 5
+Max store time: 1 hour
+Max file size: 32 MiB
+
+**Example**
+Task object:
+```
+{
+    "id": 2345,
+    "type": "uploadfile",
+    "path": "C:\\Windows\\system32\\drivers\\etc\\hosts"
+}
+```
+
+Task result object:
+```
+{
+    "url": "http://.../sutrc/filedrop/5cb1f372-ced2-11e8-9ce3-b083fe9824ac/hosts"
 }
 ```
