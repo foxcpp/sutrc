@@ -16,6 +16,22 @@ two temporary files will be created during server execution.
 if you are moving database somewhere else. They usually will be deleted
 on **normal** server shutdown.
 
+If you are using using HTTPS (what you should do of course) then you need to 
+configure your reverse proxy to pass "X-HTTPS-Downstream: 1" and Host headers,
+otherwise file downloading from agents may work incorrectly (see
+[filedrop](https://github.com/foxcpp/filedrop) documentation for details).
+
+Here is example of correct configuration for nginx with sutserver running at 8000 port:
+```
+location ~ /sutrc/api {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header X-HTTPS-Downstream "1";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+}
+```
+
 ### systemd unit
 
 `sutserver@.service` is provided for convenience.

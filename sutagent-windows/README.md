@@ -23,3 +23,5 @@ Stop installed service.
 
 `transport.go` contains two hardcoded variables: Code page used for command
 output decoding and API base url. Change them!
+
+Latter can be set during build by using `./build.sh` script.
