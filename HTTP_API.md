@@ -302,3 +302,46 @@ Task result object:
     "url": "http://.../sutrc/filedrop/5cb1f372-ced2-11e8-9ce3-b083fe9824ac/hosts"
 }
 ```
+
+#### Delete file
+
+**JSON type string:** `"deletefile"`
+
+Agent should delete file specified in `"path"` field. `"path"` is an absolute path on filesystem.
+
+**Example**
+Task object:
+```
+{
+    "id": 2346,
+    "type": "deletefile",
+    "path": "C:\\Windows\\system32\\drivers\\etc\\hosts"
+}
+```
+
+Task result object:
+```
+{}
+```
+
+#### Move file
+
+**JSON type string:** `"movefile"`
+
+Agent should move file from `"frompath"` to `"topath"` Both fields specify an absolute path.
+
+**Example**
+Task object:
+```
+{
+    "id": 2346,
+    "type": "movefile",
+    "frompath": "C:\\Windows\\system32\\drivers\\etc\\hosts"
+    "topath": "C:\\Windows\\system32\\drivers\\etc\\hosts.bak"
+}
+```
+
+Task result object:
+```
+{}
+```

