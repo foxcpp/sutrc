@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <link rel="stylesheet" href="css/bootstrap.min.css">
-        <title>SUT Control Panel - Login</title>
+        <title>SUT Control Panel - ${LOGIN_PAGETITLE}</title>
 
         <style>
             body {
@@ -51,9 +51,9 @@
     </head>
     <body>
         <main class="login-form">
-            <input id="token" type="password" class="form-element form-control" placeholder="Password">
+            <input id="token" type="password" class="form-element form-control" placeholder="${PASSWORD}">
             <span class="form-note">SUT Control Panel 1.0-rc2</span>
-            <button id="login-btn" class="clearfix form-element form-button btn btn-primary">Login</button>
+            <button id="login-btn" class="clearfix form-element form-button btn btn-primary">${LOGIN_ACTION}</button>
         </main>
 
         <script src="js/jquery-3.3.1.min.js"></script>

@@ -12,7 +12,7 @@ function addGroupToDOM(name, id) {
         </a>\
         <div class="collapse agents-group" data-parent="#agentslist" data-id="' + id + '" id="agents-group-' + id + '" aria-expanded="false">\
             <button type="button" data-role="broadcast-task" data-target="' + id + '" class="btn btn-transparent broadcast-btn">\
-                Broadcast task\
+                ${BROADCAST_TASK_BTN}\
             </button>\
         </div>\
         <hr>\
@@ -24,7 +24,7 @@ function addAgentToDOM(group, name, online) {
     var disabledAttr = ""
     var statusClass = ""
     if (online) {
-        title += " (online)"
+        title += "${ONLINE_SUFFIX}"
         statusClass = "online-agent"
     } else {
         disabledAttr = "disabled"
@@ -41,10 +41,10 @@ function addAgentToDOM(group, name, online) {
                                 </div>\
                                 <div class="twoheader-right">\
                                     <button type="button" ' + disabledAttr + ' data-role="browse-fs" data-target="' + name + '" class="btn btn-outline-secondary agent-btn">\
-                                        Browse FS\
+                                        ${BROWSE_FS_BTN}\
                                     </button>\
                                     <button type="button" ' + disabledAttr + ' data-role="send-task" data-target="' + name + '" class="btn btn-outline-secondary agent-btn">\
-                                        Send task\
+                                        ${SEND_TASK_BTN}\
                                     </button>\
                                 </div>\
                             </figure>')
@@ -62,7 +62,7 @@ function updateGroupCounts() {
         var total = $("#agents-group-" + id).children(".agent-entry").length
         var online = total - $("#agents-group-" + id).children(".offline-agent").length
         
-        $("#agents-group-" + id + "-counters").text("(" + String(online) + " online, " + String(total) + " total)")
+        $("#agents-group-" + id + "-counters").text(`${COUNTERS}`)
     }
 }
 

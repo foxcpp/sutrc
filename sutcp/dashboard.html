@@ -7,7 +7,7 @@
         <link rel="stylesheet" href="css/fontawesome.min.css">
         <link rel="stylesheet" href="css/fontawesome-solid.min.css">
         <link rel="stylesheet" href="css/common.css">
-        <title>SUT Control Panel - Dashboard</title>
+        <title>SUT Control Panel - ${DASHBOARD_PAGETITLE}</title>
 
         <style>
             .navbar {
@@ -70,32 +70,32 @@
                         </button>
                     </header>
                     <form id="send-task-form" class="modal-body">
-                        <label for="send-task-type-select">Task type</label>
+                        <label for="send-task-type-select">${TASK_TYPE}</label>
                         <select class="form-control" id="send-task-type-select">
-                            <option data-target="execute-command-form">Execute Command</option>
-                            <option data-target="power-control-form">Power Control</option>
-                            <option id="kill-proc-option" data-target="kill-proc-form">Kill Process</option>
+                            <option data-target="execute-command-form">${TASK_EXECUTE_CMD}</option>
+                            <option data-target="power-control-form">${TASK_POWER_CONTROL}</option>
+                            <option id="kill-proc-option" data-target="kill-proc-form">${TASK_KILL_PROC}</option>
                         </select>
                         <div class="send-task-type-form" id="execute-command-form">
-                            <label for="send-task-command">Command:</label>
+                            <label for="send-task-command">${COMMAND_FIELD}</label>
                             <textarea class="form-control" id="send-task-command" rows="3"></textarea>
                         </div>
                         <div class="send-task-type-form" id="power-control-form" style="display: none">
                             <select class="form-control" id="send-task-power-option">
-                                <option data-target="shutdown /s /t 1">Shutdown</option>
-                                <option data-target="shutdown /r /t 1">Reboot</option>
+                                <option data-target="shutdown /s /t 1">${ACTION_SHUTDOWN}</option>
+                                <option data-target="shutdown /r /t 1">${ACTION_REBOOT}</option>
                             </select>
                         </div>
                         <div class="send-task-type-form" id="kill-proc-form" style="display: none">
-                            <label for="proc-select-option">Select process to kill:</label>
+                            <label for="proc-select-option">${PROCESS_FIELD}</label>
                             <select class="form-control" id="proc-select-option">
                                 <!-- Populated dynamically by JS -->
                             </select>
                         </div>
                     </form>
                     <footer class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        <button id="send-task-submit" type="button" class="btn btn-primary">Send</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
+                        <button id="send-task-submit" type="button" class="btn btn-primary">${SEND_BTN}</button>
                     </footer>
                 </div>
             </div>
@@ -104,19 +104,19 @@
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <header class="modal-header">
-                        <h5>Task execution result</h5>
+                        <h5>${TASK_RESULT_TITLE}</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </header>
                     <div class="modal-body">
                         <div id="single-result">
-                            Status: <span id="result-status-code">???</span>
+                            ${STATUS_LABEL} <span id="result-status-code">???</span>
                             <pre id="result-output">
                             </pre>
                         </div>
-                        <dl id="broadcast-result">
-                        </dl>
+                        <div id="broadcast-result">
+                        </div>
                     </div>
                     <footer class="modal-footer">
                         <button data-dismiss="modal" type="button" class="btn btn-primary">OK</button>
@@ -128,18 +128,18 @@
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <header class="modal-header">
-                        <h5>Rename agent <span id="old-agent-name">...</span></h5>
+                        <h5>${RENAME_AGENT_TITLE} <span id="old-agent-name">...</span></h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </header>
                     <div class="modal-body" id="rename-agent-form">
-                        <label for="new-agent-name">New agent name:</label>
+                        <label for="new-agent-name">${NEW_AGENT_NAME_LABEL}</label>
                         <input id="new-agent-name" class="form-control">
                     </div>
                     <footer class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        <button id="rename-submit" type="button" class="btn btn-primary">Rename</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
+                        <button id="rename-submit" type="button" class="btn btn-primary">${RENAME_BTN}</button>
                     </footer>
                 </div>
             </div>
@@ -154,7 +154,7 @@
                         <div class="twoheader-right">
                             <button id="upload-btn" type="button" class="btn btn-sm btn-secondary">
                                 <span class="fas fa-upload" style="padding-right:5px"></span>
-                                Upload here
+                                ${UPLOAD_HERE}
                             </button>
                             <!-- Isn't it funny that we can't open file dialog without this crunch in 2018? -->
                             <input type="file" id="file-upload" style="display:none">
@@ -172,11 +172,11 @@
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <div class="modal-body">
-                        Are you sure you want to delete <span id="filename">FILENAME</span>?
+                        ${DELETE_WARNING} <span id="filename">FILENAME</span>?
                     </div>
                     <footer class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        <button id="delete-confirm-btn" type="button" class="btn btn-danger">Delete</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
+                        <button id="delete-confirm-btn" type="button" class="btn btn-danger">${DELETE_BTN}</button>
                     </footer>
                 </div>
             </div>
@@ -185,28 +185,28 @@
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <div class="modal-body" id="fs-rename-form">
-                        <label for="new-file-atph">Enter new file path to move or name it:</label>
+                        <label for="new-file-atph">${NEW_FILE_PATH_LABEL}</label>
                         <input id="new-file-path" class="form-control">
                     </div>
                     <footer class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        <button id="fs-rename-submit" type="button" class="btn btn-primary">Rename</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
+                        <button id="fs-rename-submit" type="button" class="btn btn-primary">${RENAME_BTN}</button>
                     </footer>
                 </div>
             </div>
         </div>
         <main class="container-fluid">
             <header class="twoheader">
-                <h3 class="twoheader-left">Agents</h3>
+                <h3 class="twoheader-left">${AGENTS_LIST_TITLE}</h3>
                 <div class="twoheader-right">
-                    <span style="color:#bbb">Auto-update every 5 seconds</span>
+                    <span style="color:#bbb">${AUTOUPDATE_NOTE}</span>
                     <button type="button" id="agents-reload-btn" class="twoheader-right btn btn-transparent" aria-label="Refresh">
                         <span class="fas fa-sync-alt"></span>
                     </button>
                 </div>
             </header>
             <div id="agentslist" class="accordion">
-                <noscript><p class="alert alert-danger">Enable JavaScript to use this website.</p></noscript>
+                <noscript><p class="alert alert-danger">${JAVASCRIPT_REQUIRED}</p></noscript>
                 <!-- Populated dynamically by JS -->
             </div>
         </main>
@@ -255,7 +255,7 @@
                         var groupName
                         if (splitten.length === 1) {
                             group = "unknown"
-                            groupName = "Unknown Group"
+                            groupName = "${UNKNOWN_GROUP}"
                             name = val
                         } else {
                             group = splitten[0]
@@ -280,7 +280,7 @@
                         $(groups[i]).children(".broadcast-btn").attr("disabled", $(groups[i]).children(".online-agent").length == 0)
                     }
                 }, function(msg) {
-                    showAlert("agents-load-error", "#agentslist", "Failed to update agents list: " + msg)
+                    showAlert("agents-load-error", "#agentslist", "${AGENTLIST_UPDATE_FAIL} " + msg)
                     $("#agents-reload-btn").children(":first").removeClass("fa-spin")
                 })
             }
@@ -292,7 +292,7 @@
                 tasksListXHR = submitTask(target, {type: "proclist"}, function (result) {
                     $("#proc-select-option").children().remove()
                     if (result.results[0].procs === undefined) {
-                        showAlert("task-submit-error", "#send-task-form", "Failed to load process list from agent: no list present")
+                        showAlert("task-submit-error", "#send-task-form", "${PROCLIST_LOAD_FAIL} no list present")
                         return
                     }
                     result.results[0].procs.forEach(function(val){
@@ -300,12 +300,11 @@
                     })
                 }, function (msg) {
                     $("#proc-select-option").children().remove()
-                    showAlert("task-submit-error", "#send-task-form", "Failed to load process list from agent: " + msg)
+                    showAlert("task-submit-error", "#send-task-form", "${PROCLIST_LOAD_FAIL} " + msg)
                 })
             }
 
             $(document).ready(loadAgentsList)
-            $(document).ready(function() { $("#login-username").text(Cookies.get("username")) })
 
             $("#agents-reload-btn").click(loadAgentsList)
 
@@ -353,7 +352,7 @@
                 $("#fs-alert").alert("close")
                 
                 $(".fs-entry").remove()
-                $("#fs-browser-body").append('<span class="fs-entry">Loading...</span>')
+                $("#fs-browser-body").append('<span class="fs-entry">${LOADING_LABEL}</span>')
                 directoryContents(target, curDir, function (contents) {
                     $(".fs-entry").remove()
                     if (haveFSParent(curDir)) {
@@ -365,7 +364,7 @@
                     registerFSBtnCallback()
                 }, function (msg) {
                     $(".fs-entry").remove()
-                    showAlert("fs-load-err", "#fs-browser-body", "Failed to load directory contents: " + msg)
+                    showAlert("fs-load-err", "#fs-browser-body", "${DIRCONTENTS_LOAD_FAIL} " + msg)
                 })
             }
             
@@ -376,7 +375,7 @@
                         curDir = entry.data("path")
                         updateFSForm()
                     } else {
-                        showNotify("fs-alert", "#fs-browser-body", "Wait for agent to send file... It may take some time.")
+                        showNotify("fs-alert", "#fs-browser-body", "${WAITING_AGENT_UPLOAD}")
                         downloadFile(target, entry.data("path"), function (url) {
                             $("#fs-alert").alert("close")
                             var link = document.createElement("a")
@@ -386,7 +385,7 @@
                             link.click()
                             document.body.removeChild(link)
                         }, function (msg) {
-                            showAlert("fs-alert", "#fs-browser-body", "Failed start file download: " + msg)
+                            showAlert("fs-alert", "#fs-browser-body", "${DOWNLOAD_START_FAIL} " + msg)
                             console.log("err " + msg)
                         })
                     }
@@ -415,7 +414,7 @@
                 moveFile(target, selectedFile, $("#new-file-path").val(), function () {
                     updateFSForm()
                 }, function (msg) {
-                    showAlert("fs-alert", "#fs-browser-body", "Failed to rename file: " + msg) 
+                    showAlert("fs-alert", "#fs-browser-body", "${RENAME_FILE_FAIL} " + msg)
                 }) 
             })
             
@@ -424,7 +423,7 @@
                 deleteFile(target, selectedFile, function () {
                     updateFSForm()
                 }, function (msg) {
-                    showAlert("fs-alert", "#fs-browser-body", "Failed to delete file: " + msg) 
+                    showAlert("fs-alert", "#fs-browser-body", "${DELETE_FAIL} " + msg)
                 }) 
             })
             
@@ -434,12 +433,12 @@
             
             $("#file-upload").change(function (event) {
                 var file = $("#file-upload")[0].files[0]
-                showNotify("fs-alert", "#fs-browser-body", "File upload can take some time. Please, be patient.")
+                showNotify("fs-alert", "#fs-browser-body", "${UPLOAD_WAIT}")
                 uploadFile(target, file, curDir + "\\" + file.name, function () {
                     $("#fs-alert").alert("close")
                     updateFSForm()
                 }, function (msg) {
-                    showAlert("fs-alert", "#fs-browser-body", "Failed to upload file: " + msg) 
+                    showAlert("fs-alert", "#fs-browser-body", "${UPLOAD_FAIL} " + msg)
                 })
             })
 
@@ -449,7 +448,7 @@
                     target = event.currentTarget.dataset.target
                     if (event.currentTarget.dataset.role == "send-task") {
                         broadcast = false
-                        $("#send-task-modal-title").text("Send task to agent " + target)
+                        $("#send-task-modal-title").text("${SEND_TASK_TO_AGENT} " + target)
 
                         updateSendTaskForm()
                         $("#send-task-modal").modal("show")
@@ -488,7 +487,7 @@
                     $("#rename-modal").modal("hide")
                     $("#rename-submit").text("Rename")
                 }, function(msg) {
-                    showAlert("rename-agent-error", "#rename-agent-form", "Failed to rename agent: " + msg)
+                    showAlert("rename-agent-error", "#rename-agent-form", "${RENAME_AGENT_FAIL} " + msg)
                     $("#rename-submit").text("Rename")
                 })
             })
@@ -497,36 +496,36 @@
                 var type = $("#send-task-type-select").val()
                 var payload = {}
                 switch (type) {
-                    case "Execute Command":
+                    case "${TASK_EXECUTE_CMD}":
                         payload = {
                             type: "execute_cmd",
                             cmd: $("#send-task-command").val()
                         }
                         break;
-                    case "Kill Process":
+                    case "${TASK_KILL_PROC}":
                         payload = {
                             type: "execute_cmd",
                             cmd: "taskkill /pid " + $("#proc-select-option")[0].selectedOptions[0].dataset.pid
                         }
                         break;
-                    case "Power Control":
+                    case "${TASK_POWER_CONTROL}":
                         payload = {
                             type: "execute_cmd",
                             cmd: $("#send-task-power-option")[0].selectedOptions[0].dataset.target
                         }
                         break;
                 }
-                $("#send-task-submit").text("Waiting for reply...")
+                $("#send-task-submit").text("${TASK_RESULT_WAIT}")
                 sendTaskXHR = submitTask(target, payload, function (result) {
                     if (!broadcast) {
                         showTaskSendResult(result)
                     } else {
                         showTaskBroadcastResult(result)
                     }
-                    $("#send-task-submit").text("Send")
+                    $("#send-task-submit").text("${SEND_BTN}")
                 }, function(msg) {
-                    showAlert("task-submit-error", "#send-task-form", "Failed to submit task: " + msg)
-                    $("#send-task-submit").text("Send")
+                    showAlert("task-submit-error", "#send-task-form", "${SUBMIT_TASK_FAIL} " + msg)
+                    $("#send-task-submit").text("${SEND_BTN}")
                 })
             })
 
@@ -552,10 +551,10 @@
                 $("#single-result").show()
 
                 if (result.error) {
-                    $("#result-status-code").text("Errored (server)")
+                    $("#result-status-code").text("${STATUS_ERROR_SERVER}")
                     $("#result-output").text(result.msg)
                 } else if (result.results[0].error) {
-                    $("#result-status-code").text("Errored (agent)")
+                    $("#result-status-code").text("${STATUS_ERROR_AGENT}")
                     $("#result-output").text(result.results[0].msg)
                 } else {
                     $("#result-status-code").text(result.results[0].status_code)
@@ -576,7 +575,7 @@
                     var status
                     var output
                     if (res[i].error) {
-                        status = "Errored (agent)"
+                        status = "${STATUS_ERROR_AGENT}"
                         output = res[i].msg
                     } else {
                         status = res[i].status_code
