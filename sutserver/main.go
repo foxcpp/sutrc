@@ -58,6 +58,7 @@ func main() {
 
 // Can be set using `go build -ldflags "-X main.debugLog="true""`
 var debug string
+
 func debugLog(v ...interface{}) {
 	if debug == "true" { // -X flag can't handle non-string types
 		log.Println(v...)
@@ -128,12 +129,11 @@ func startFiledrop(DBFile string) *filedrop.Server {
 	filedropConf.Limits.MaxUses = 5
 	filedropConf.Limits.MaxFileSize = 32 * 1024 * 1024 // 32 MiB
 	filedropConf.Limits.MaxStoreSecs = 3600            // 1 hour
-	filedropConf.HTTPSUpstream = true
 	filedropConf.UploadAuth.Callback = func(r *http.Request) bool {
-		return checkAdminAuth(r.Header) || checkAgentAuth(r.Header)
+		return checkAdminAuth(r.Header) || checkAgentAuth(r.Header) || db.CheckSession(r.URL.Query().Get("token"))
 	}
 	filedropConf.DownloadAuth.Callback = func(r *http.Request) bool {
-		return checkAdminAuth(r.Header) || checkAgentAuth(r.Header)
+		return checkAdminAuth(r.Header) || checkAgentAuth(r.Header) || db.CheckSession(r.URL.Query().Get("token"))
 	}
 	if err := os.MkdirAll(filedropConf.StorageDir, 0777); err != nil {
 		log.Fatalln("Failed to create filedrop storage dir:", err)
