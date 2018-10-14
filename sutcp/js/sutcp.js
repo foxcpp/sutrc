@@ -33,13 +33,16 @@ function addAgentToDOM(group, name, online) {
     
     $("#agents-group-" + group).append('\
                             <figure data-id="' + name + '" class="twoheader agent-entry ' + statusClass+ '">\
-                                <div class="twoheader-left">\
+                                <div class="twoheader-left" datadata-target="' + name + '">\
                                     <span class="agent-name">' + title + '</span>\
                                     <button type="button" data-role="rename-agent" data-target="' + name + '" class="btn btn-transparent btn-dim agent-btn">\
                                         <span class="fas fa-sm fa-pencil-alt"></span>\
                                     </button>\
                                 </div>\
                                 <div class="twoheader-right">\
+                                    <button type="button" ' + disabledAttr + ' data-role="browse-fs" data-target="' + name + '" class="btn btn-outline-secondary agent-btn">\
+                                        Browse FS\
+                                    </button>\
                                     <button type="button" ' + disabledAttr + ' data-role="send-task" data-target="' + name + '" class="btn btn-outline-secondary agent-btn">\
                                         Send task\
                                     </button>\
@@ -63,9 +66,17 @@ function updateGroupCounts() {
     }
 }
 
-function showAlert(id, where, text) {
+function showAlertGeneric(id, type, where, text) {
     $("#" + id).alert("close")
-    $(where).prepend('<div class="alert alert-danger alert-dismissible" id="' + id + '" role="alert">Failed to update agents list: ' + text + '.')
+    $(where).prepend('<div class="alert ' + type + ' alert-dismissible" id="' + id + '" role="alert">' + text + '.')
+}
+
+function showAlert(id, where, text) {
+    showAlertGeneric(id, "alert-danger", where, text)
+}
+
+function showNotify(id, where, text) {
+    showAlertGeneric(id, "alert-info", where, text)
 }
 
 function groupOnlineAgents(id) {
@@ -75,4 +86,56 @@ function groupOnlineAgents(id) {
         res.push(onlineAgents[i].dataset.id)
     }
     return res
+}
+
+function haveFSParent(path) {
+    var parts = path.split("\\")
+    return !(parts.length == 2 && parts[1] == "")
+}
+
+function parentFSPath(path) {
+    if (path.endsWith("\\")) {
+        return path.split("\\").slice(0, -2).join("\\") + "\\"
+    } else {
+        return path.split("\\").slice(0, -1).join("\\") + "\\"
+    }
+}
+
+function filename(path) {
+    if (path.endsWith("\\")) {
+        return path.split("\\").slice(-2)
+    } else {
+        return path.split("\\").slice(-1)
+    }
+}
+
+function addUpperDirEntry() {
+    $("#fs-browser-body").append('\
+        <div id="upper-dir-entry" class="fs-entry directory twoheader">\
+            <span class="twoheader-left">\
+                <a href="#" class="styleless-link" id="upper-dir-link">..</a>\
+            </span>\
+        </div>')
+}
+
+function addFSEntryToDOM(entry) {
+    var dirClass = ""
+    if (entry.dir) {
+        dirClass = "directory"
+    }
+    
+    $("#fs-browser-body").append('\
+                        <div class="twoheader fs-entry ' + dirClass + '" data-path="' + escapeHTML(entry.fullpath) + '">\
+                            <span class="twoheader-left">\
+                                <a href="#" class="styleless-link fs-link">' + entry.name + '</a>\
+                                <button type="button" class="fs-rename-btn btn btn-transparent btn-dim">\
+                                    <span class="fas fa-sm fa-pencil-alt"></span>\
+                                </button>\
+                            </span>\
+                            <span class="twoheader-right">\
+                                <button type="button" class="fs-delete-btn btn btn-sm btn-outline-danger">\
+                                    <span class="fas fa-trash-alt"></span>\
+                                </button>\
+                            </span>\
+                        </div>')
 }

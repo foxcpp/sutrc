@@ -50,20 +50,20 @@
         </style>
     </head>
     <body>
-        <form class="login-form">
+        <main class="login-form">
             <input id="token" type="password" class="form-element form-control" placeholder="Password">
             <span class="form-note">SUT Control Panel 1.0-rc2</span>
-            <button id="login-btn" class="clearfix form-element form-button btn btn-primary" type="submit">Login</button>
-        </form>
+            <button id="login-btn" class="clearfix form-element form-button btn btn-primary">Login</button>
+        </main>
 
         <script src="js/jquery-3.3.1.min.js"></script>
         <script src="js/popper.min.js"></script>
         <script src="js/bootstrap.min.js"></script>
         <script src="js/js.cookie.js"></script>
+        <script src="js/sutserver.js"></script>
+        <script src="js/sutcp.js"></script>
 
         <script>
-            var apiPrefix = "api"
-
             if (Cookies.get("token") != undefined) {
                 window.location = "dashboard.html"
             }
@@ -76,34 +76,17 @@
                 }
 
                 $("#login-btn").text("...")
-                $.ajax({
-                    url: apiPrefix + "/login",
-                    dataType: "json",
-                    data: {
-                        token: $("#token").val()
-                    }
-                })
-                .done(function(data) {
-                    Cookies.set("token", data.token)
+                login($("#token").val(), function(token) {
+                    Cookies.set("token", token)
                     window.location = "dashboard.html"
-                })
-                .fail(function(data) {
-                    if (data.responseJSON != undefined) {
-                        msg = data.responseJSON.msg
-                    } else {
-                        msg = data.statusText
-                    }
-                    if (data.status == 403) {
-                        msg = "Invalid password"
-                    } else {
-                        msg = "Internal server error: " + msg
-                    }
-
-                    $(".alert").alert("close")
-                    $(".login-form").prepend('<div class="alert alert-danger alert-dismissible" role="alert">' + msg + '.<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>')
+                    $("#login-btn").text("Login")
+                }, function() {
+                    showAlert("login-err-alert", ".login-form", "Invalid password")
+                    $("#login-btn").text("Login")
+                }, function(msg) {
+                    showAlert("login-err-alert", ".login-form", "Failed to login: " + msg)
                     $("#login-btn").text("Login")
                 })
-                event.preventDefault();
             })
         </script>
     </body>

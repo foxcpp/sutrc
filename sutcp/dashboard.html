@@ -35,6 +35,21 @@
             .agents-group-counter {
                 padding-left: 5px;
             }
+            #fs-browser-body {
+                padding: 0 0 0 0;
+                min-height: 400px;
+            }
+            .fs-entry {
+                margin-top: 5px;
+                margin-bottom: 5px;
+                padding-left: 1rem;
+            }
+            .fs-entry:nth-of-type(odd) {
+                background-color: #fff;
+            }
+            .fs-entry:nth-of-type(even) {
+                background-color: #eee;
+            }
         </style>
     </head>
     <body>
@@ -129,6 +144,57 @@
                 </div>
             </div>
         </div>
+        <div class="modal fade" id="fs-browser-modal" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <header class="modal-header twoheader">
+                        <div class="twoheader-left">
+                            <span id="agent-name">AGENT-NAME</span><span style="padding-left: 5px" id="fs-path">PATH</span>
+                        </div>
+                        <div class="twoheader-right">
+                            <button id="upload-btn" type="button" class="btn btn-sm btn-secondary">
+                                <span class="fas fa-upload" style="padding-right:5px"></span>
+                                Upload here
+                            </button>
+                            <!-- Isn't it funny that we can't open file dialog without this crunch in 2018? -->
+                            <input type="file" id="file-upload" style="display:none">
+                            <button type="button" class="btn btn-sm btn-floating" data-dismiss="modal" aria-label="Close">
+                                <span class="fas fa-lg fa-times" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                    </header>
+                    <div class="modal-body" id="fs-browser-body">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="delete-confirm-modal" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        Are you sure you want to delete <span id="filename">FILENAME</span>?
+                    </div>
+                    <footer class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button id="delete-confirm-btn" type="button" class="btn btn-danger">Delete</button>
+                    </footer>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="fs-rename-modal" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-body" id="fs-rename-form">
+                        <label for="new-file-atph">Enter new file path to move or name it:</label>
+                        <input id="new-file-path" class="form-control">
+                    </div>
+                    <footer class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button id="fs-rename-submit" type="button" class="btn btn-primary">Rename</button>
+                    </footer>
+                </div>
+            </div>
+        </div>
         <main class="container-fluid">
             <header class="twoheader">
                 <h3 class="twoheader-left">Agents</h3>
@@ -156,6 +222,10 @@
         <script>
             var target = ""
             var broadcast = false
+            
+            // FS browser content
+            var curDir = 'C:\\'
+            var selectedFile = ""
             
             // These global objects store started ajax requests so we can
             // ensure there there is only one of any and we are able to abort 
@@ -276,10 +346,106 @@
                 $("#old-agent-name").text(target)
                 $("#new-agent-name").val(target)
             }
+            
+            function updateFSForm() {
+                $("#agent-name").text(target)
+                $("#fs-path").text(curDir)
+                $("#fs-alert").alert("close")
+                
+                $(".fs-entry").remove()
+                $("#fs-browser-body").append('<span class="fs-entry">Loading...</span>')
+                directoryContents(target, curDir, function (contents) {
+                    $(".fs-entry").remove()
+                    if (haveFSParent(curDir)) {
+                        addUpperDirEntry()   
+                    }
+                    for (var i = 0; i < contents.length; i++) {
+                        addFSEntryToDOM(contents[i])
+                    }
+                    registerFSBtnCallback()
+                }, function (msg) {
+                    $(".fs-entry").remove()
+                    showAlert("fs-load-err", "#fs-browser-body", "Failed to load directory contents: " + msg)
+                })
+            }
+            
+            function registerFSBtnCallback() {
+                $(".fs-link").click(function (event) {
+                    var entry = $(event.target).parent().parent(".fs-entry")
+                    if (entry.hasClass("directory")) {
+                        curDir = entry.data("path")
+                        updateFSForm()
+                    } else {
+                        showNotify("fs-alert", "#fs-browser-body", "Wait for agent to send file... It may take some time.")
+                        downloadFile(target, entry.data("path"), function (url) {
+                            $("#fs-alert").alert("close")
+                            var link = document.createElement("a")
+                            document.body.appendChild(link)
+                            link.href = url + "?token=" + Cookies.get("token")
+                            link.download = entry.data("path")
+                            link.click()
+                            document.body.removeChild(link)
+                        }, function (msg) {
+                            showAlert("fs-alert", "#fs-browser-body", "Failed start file download: " + msg)
+                            console.log("err " + msg)
+                        })
+                    }
+                    return false
+                })
+                $(".fs-rename-btn").click(function (event) {
+                    var entry = $(event.target).parent().parent(".fs-entry")
+                    selectedFile = entry.data("path")
+                    $("#new-file-path").val(entry.data("path"))
+                    $("#fs-rename-modal").modal("show")
+                })
+                $(".fs-delete-btn").click(function (event) {
+                    var entry = $(event.target).parent().parent(".fs-entry")
+                    selectedFile = entry.data("path")
+                    $("#filename").text(filename(entry.data("path")))
+                    $("#delete-confirm-modal").modal("show")
+                })
+                $("#upper-dir-link").click(function (event) {
+                    curDir = parentFSPath(curDir)
+                    updateFSForm()
+                })
+            }
+            
+            $("#fs-rename-submit").click(function (event) {
+                $("#fs-rename-modal").modal("hide")
+                moveFile(target, selectedFile, $("#new-file-path").val(), function () {
+                    updateFSForm()
+                }, function (msg) {
+                    showAlert("fs-alert", "#fs-browser-body", "Failed to rename file: " + msg) 
+                }) 
+            })
+            
+            $("#delete-confirm-btn").click(function (event) {
+                $("#delete-confirm-modal").modal("hide")
+                deleteFile(target, selectedFile, function () {
+                    updateFSForm()
+                }, function (msg) {
+                    showAlert("fs-alert", "#fs-browser-body", "Failed to delete file: " + msg) 
+                }) 
+            })
+            
+            $("#upload-btn").click(function (event) {
+                $("#file-upload").click()
+            })
+            
+            $("#file-upload").change(function (event) {
+                var file = $("#file-upload")[0].files[0]
+                showNotify("fs-alert", "#fs-browser-body", "File upload can take some time. Please, be patient.")
+                uploadFile(target, file, curDir + "\\" + file.name, function () {
+                    $("#fs-alert").alert("close")
+                    updateFSForm()
+                }, function (msg) {
+                    showAlert("fs-alert", "#fs-browser-body", "Failed to upload file: " + msg) 
+                })
+            })
 
             function registerAgentBtnCallback() {
                 // We modify DOM while loading agent list. We can't register callback ahead-of-time because there is no .agent-btn yet.
-                $(".agent-btn").click(function(event) {
+                $(".agent-btn").click(function (event) {
                     target = event.currentTarget.dataset.target
                     if (event.currentTarget.dataset.role == "send-task") {
                         broadcast = false
@@ -292,8 +458,13 @@
                         updateRenameForm()
                         $("#rename-modal").modal("show")
                     }
+                    if (event.currentTarget.dataset.role == "browse-fs") {
+                        curDir = "C:\\"
+                        updateFSForm()
+                        $("#fs-browser-modal").modal("show")
+                    }
                 })
-                $(".broadcast-btn").click(function(event) {
+                $(".broadcast-btn").click(function (event) {
                     broadcast = true
                     target = groupOnlineAgents(event.target.dataset.target).join(",")
                     updateSendTaskForm()

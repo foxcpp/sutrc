@@ -37,6 +37,17 @@ figure {
     color: #222;
     transition: color 0.15s;
 }
+.btn-floating {
+    background: none;
+    color: #666;
+}
+.btn-floating:hover {
+    background: none;
+    color: #888;
+}
+.btn-floating:focus {
+    box-shadow: none;
+}
 .container-fluid {
     padding-top: 25px;
 }
@@ -63,5 +74,4 @@ figure {
 .twoheader-right {
     display: inline-block;
     margin-left: auto;
-
 }
