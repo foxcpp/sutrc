@@ -345,3 +345,29 @@ Task result object:
 ```
 {}
 ```
+
+#### Take Screenshot
+
+**JSON type string:** `"screenshot"`
+
+Agent should take screenshot of user's screen, upload it to server and reply
+with corresponding URL.
+
+Image format is not strictly defined, however it's a good idea to send either
+JPEG or PNG so client can understand and properly decode it.
+
+**Example**
+Task object:
+```
+{
+    "id": 2347,
+    "type": "screenshot"
+}
+```
+
+Task result object:
+```
+{
+    "url": "http://.../sutrc/filedrop/5cb1f372-ced2-11e8-9ce3-b083fe9824ac/screenshot.png"
+}
+```
