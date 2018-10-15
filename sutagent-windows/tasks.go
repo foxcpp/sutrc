@@ -2,6 +2,9 @@ package main
 
 import (
 	"github.com/foxcpp/sutrc/agent"
+	"github.com/kbinani/screenshot"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"io/ioutil"
 	"log"
@@ -120,6 +123,39 @@ func downloadFileTask(client *agent.Client, taskID int, body map[string]interfac
 		return
 	}
 	client.SendTaskResult(taskID, map[string]interface{}{"error": false})
+}
+
+func screenshotTask(client *agent.Client, taskID int, _ map[string]interface{}) {
+	img, err := screenshot.CaptureDisplay(0)
+	if err != nil {
+		client.SendTaskResult(taskID, map[string]interface{}{
+			"error": true,
+			"msg": err.Error(),
+		})
+		return
+	}
+
+	// Use pipe to avoid copying; blocks task thread until wtr.Close() is called (encoding finished)
+	rdr, wtr := io.Pipe()
+	go func() {
+		jpeg.Encode(wtr, img, &jpeg.Options{
+			Quality: 50,
+		})
+		png.Encode(wtr, img)
+		wtr.Close()
+	}()
+	url, err := client.UploadFile(rdr)
+	if err != nil {
+		client.SendTaskResult(taskID, map[string]interface{}{
+			"error": true,
+			"msg": err.Error(),
+		})
+		return
+	}
+
+	client.SendTaskResult(taskID, map[string]interface{}{
+		"url": url,
+	})
 }
 
 func proclistTask(client *agent.Client, taskID int, _ map[string]interface{}) {

