@@ -130,11 +130,17 @@ func startFiledrop(DBFile string) *filedrop.Server {
 	filedropConf.Limits.MaxFileSize = 32 * 1024 * 1024 // 32 MiB
 	filedropConf.Limits.MaxStoreSecs = 3600            // 1 hour
 	filedropConf.UploadAuth.Callback = func(r *http.Request) bool {
-		return checkAdminAuth(r.Header) || checkAgentAuth(r.Header) || db.CheckSession(r.URL.Query().Get("token"))
+		if checkAdminAuth(r.Header) || checkAgentAuth(r.Header) {
+			return true
+		}
+		cookie, err := r.Cookie("token")
+		if err != nil {
+
+			return false
+		}
+		return db.CheckSession(cookie.Value)
 	}
-	filedropConf.DownloadAuth.Callback = func(r *http.Request) bool {
-		return checkAdminAuth(r.Header) || checkAgentAuth(r.Header) || db.CheckSession(r.URL.Query().Get("token"))
-	}
+	filedropConf.DownloadAuth.Callback = filedropConf.UploadAuth.Callback
 	if err := os.MkdirAll(filedropConf.StorageDir, 0777); err != nil {
 		log.Fatalln("Failed to create filedrop storage dir:", err)
 	}

