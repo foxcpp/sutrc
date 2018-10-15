@@ -23,9 +23,12 @@ package main
 
 import (
 	"fmt"
+	"golang.org/x/text/encoding/charmap"
 	"syscall"
 	"unsafe"
 )
+
+var cmdEncoding = charmap.CodePage866
 
 /*
 import (

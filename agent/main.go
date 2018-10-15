@@ -40,7 +40,7 @@ type Client struct {
 	baseURL            string
 	authHeader         string
 	h                  http.Client
-	SupportedTaskTypes map[string]bool
+	SupportedTaskTypes []string
 }
 
 func NewClient(baseURL string) Client {
@@ -121,12 +121,13 @@ func (c *Client) PollTasks() (id int, type_ string, body map[string]interface{},
 	}
 
 	if c.SupportedTaskTypes != nil {
-		if _, prs := c.SupportedTaskTypes[type_]; !prs {
-			return id, type_, body, errors.New("unsupported task type")
+		for _, v := range c.SupportedTaskTypes {
+			if v == type_ {
+				return
+			}
 		}
 	}
-
-	return
+	return id, type_, body, errors.New("unsupported task type")
 }
 
 func (c *Client) UploadFile(src io.Reader) (string, error) {
