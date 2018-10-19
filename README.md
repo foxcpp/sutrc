@@ -106,3 +106,10 @@ HTTP status code is **always different from 200** if error is returned.
 #### HTTP API reference
 
 Can be found in [HTTP_API.md](HTTP_API.md) file.
+
+## License
+
+This project and all of it's substantial parts are equally licensed under MIT license, see LICENSE file for more info.
+
+Copyright © 2018 Max Mazurov (fox.cpp) and Vladyslav Yamkovyi (Hexawolf)
+

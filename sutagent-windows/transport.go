@@ -1,4 +1,5 @@
-/*
+/* MIT License
+ *
  * Copyright (c) 2018  Vladyslav Yamkovyi (Hexawolf)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,7 +20,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 package main
 
 import (
