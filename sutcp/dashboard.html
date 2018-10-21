@@ -63,6 +63,12 @@
                 max-height: 70vh;
                 margin: auto;
             }
+            .page-footer {
+                position: absolute;
+                bottom: 29px; /* negative value of footer height */
+                height: 10px;
+                clear: both;
+            }            
         </style>
     </head>
     <body>
@@ -199,7 +205,7 @@
                     <footer class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
                         <button id="delete-confirm-btn" type="button" class="btn btn-danger">${DELETE_BTN}</button>
-                    </footer>
+                    </footer>n
                 </div>
             </div>
         </div>
@@ -231,6 +237,11 @@
                 <noscript><p class="alert alert-danger">${JAVASCRIPT_REQUIRED}</p></noscript>
                 <!-- Populated dynamically by JS -->
             </div>
+            <footer class="page-footer">
+                <span id="selfreg-status">Agents selfreg status UNKNOWN</span>    
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-disable">${SELFREG_DISABLE}</button> 
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-enable">${SELFREG_ENABLE}</button> 
+            </footer>
         </main>
 
         <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha384-tsQFqpEReu7ZLhBV2VZlAu7zcOV+rXbYlF2cqB8txI/8aZajjp4Bqd+V6D5IgvKT" crossorigin="anonymous"></script>
@@ -326,8 +337,35 @@
             }
 
             $(document).ready(loadAgentsList)
+            
+            function updateSelfregBtns(newVal) {
+                if (newVal) {
+                    $("#selfreg-status").text("${SELFREG_ENABLED}")
+                    $("#selfreg-enable").hide()
+                    $("#selfreg-disable").show()
+                } else {
+                    $("#selfreg-status").text("${SELFREG_DISABLED}")
+                    $("#selfreg-enable").show()
+                    $("#selfreg-disable").hide()
+                }
+            }
+            $(document).ready(function (event) {
+                getSelfregStatus(updateSelfregBtns, function (err) {
+                    console.log("Failed to get selfreg status: " + err)
+                })
+            })
 
             $("#agents-reload-btn").click(loadAgentsList)
+            $("#selfreg-enable").click(function (event) {
+                setSelfregStatus(1, updateSelfregBtns, function (err) {
+                    console.log("Failed to set selfreg status: " + err)
+                })
+            })
+            $("#selfreg-disable").click(function (event) {
+                setSelfregStatus(0, updateSelfregBtns, function (err) {
+                    console.log("Failed to set selfreg status: " + err)
+                })
+            })
 
             $("#logout-btn").click(function(event) {
                 $.ajax({

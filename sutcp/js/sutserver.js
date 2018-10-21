@@ -154,6 +154,34 @@ function uploadFile(target, file, fullpath, successCallback, failureCallback) {
     })
 }
 
+function getSelfregStatus(successCallback, failureCallback) {
+    var xhr = $.ajax({
+        method: "GET",
+        url: apiPrefix + "/agents_selfreg?",
+        headers: {
+            Authorization: Cookies.get("token")
+        }
+    }).done(function (data) {
+        successCallback(data == "1")
+    }).fail(function (resp) {
+        failureCallback(getErrorMessage(resp))
+    })    
+}
+
+function setSelfregStatus(val, successCallback, failureCallback) {
+    var xhr = $.ajax({
+        method: "POST",
+        url: apiPrefix + "/agents_selfreg?" + jQuery.param({enabled: val}),
+        headers: {
+            Authorization: Cookies.get("token")
+        }
+    }).done(function (data) {
+        successCallback(val)
+    }).fail(function (resp) {
+        failureCallback(getErrorMessage(resp))
+    })
+}
+
 function getErrorMessage(resp) {
     var msg
     if (resp.responseJSON != undefined) {
