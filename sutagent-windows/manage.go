@@ -24,6 +24,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/foxcpp/sutrc/agent"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -66,6 +67,9 @@ func exePath() (string, error) {
 func (m *sutService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
+	agent.ControlService("sutupdate", svc.Stop, svc.Stopped)
+	// XXX: probably will be removed in future releases
+	agent.RemoveService("sutupdate")
 	hwid, err := ioutil.ReadFile("C:\\Windows\\sutpc.key")
 	if err != nil {
 		const authKeyErr = "Failed to read authorization key:"
@@ -82,12 +86,12 @@ func (m *sutService) Execute(args []string, r <-chan svc.ChangeRequest, changes 
 		case svc.Interrogate:
 			changes <- c.CurrentStatus
 		case svc.Stop, svc.Shutdown:
-			break
+			changes <- svc.Status{State: svc.StopPending}
+			return
 		default:
 			elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
 		}
 	}
-	changes <- svc.Status{State: svc.StopPending}
 	return
 }
 

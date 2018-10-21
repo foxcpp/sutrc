@@ -104,7 +104,7 @@ func dirContentsTask(client *agent.Client, taskID int, body map[string]interface
 		return
 	}
 
-	res := []map[string]interface{}{}
+	var res []map[string]interface{}
 	for _, entry := range dirInfo {
 		res = append(res, map[string]interface{}{
 			"name":     entry.Name(),
@@ -235,4 +235,30 @@ func executeCmdTask(client *agent.Client, taskID int, body map[string]interface{
 		"status_code": out.ProcessState.Sys().(syscall.WaitStatus).ExitCode,
 		"output":      decodedOut,
 	})
+}
+
+func selfUpdateTask(client *agent.Client, taskID int, _ map[string]interface{}) {
+	const executable = "C:\\Windows\\sutupdate.exe"
+	out, err := os.Create(executable)
+	if err != nil  {
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Cannot access local file: " + err.Error()})
+		return
+	}
+	defer out.Close()
+
+	inp, err := client.Download(baseURL + "/sutupdate.exe")
+	if err != nil {
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to fetch latest agent version: " + err.Error()})
+		return
+	}
+
+	_, err = io.Copy(out, inp)
+	if err != nil {
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to save the file: " + err.Error()})
+		return
+	}
+
+	exec.Command(executable, "install").Run()
+	client.SendTaskResult(taskID, map[string]interface{}{"error": false, "msg": "Update process was initiated"})
+	agent.StartService("sutupdate")
 }

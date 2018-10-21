@@ -35,6 +35,9 @@ import (
 	"strings"
 )
 
+// AGENT_VERSION is a super-pooper shared number that is used to identify if we need a agent update
+const AGENT_VERSION = 1
+
 // Wrapper class that takes care of all boilerplate required for agent session.
 type Client struct {
 	baseURL            string
@@ -55,6 +58,7 @@ func (c *Client) RegisterAgent(name, hwid string) error {
 		return fmt.Errorf("request create: %v", err)
 	}
 	req.Header.Set("Authorization", c.authHeader)
+	req.Header.Set("Version", strconv.Itoa(AGENT_VERSION))
 	resp, err := c.h.Do(req)
 	if err != nil {
 		return err
@@ -81,6 +85,7 @@ func (c *Client) PollTasks() (id int, type_ string, body map[string]interface{},
 		return -1, "", nil, fmt.Errorf("request create: %v", err)
 	}
 	req.Header.Set("Authorization", c.authHeader)
+	req.Header.Set("Version", strconv.Itoa(AGENT_VERSION))
 	resp, err := c.h.Do(req)
 	if err != nil {
 		return -1, "", nil, err
@@ -136,6 +141,7 @@ func (c *Client) UploadFile(src io.Reader) (string, error) {
 		return "", err
 	}
 	req.Header.Set("Authorization", c.authHeader)
+	req.Header.Set("Version", strconv.Itoa(AGENT_VERSION))
 	resp, err := c.h.Do(req)
 	if err != nil {
 		return "", err
@@ -158,6 +164,7 @@ func (c *Client) Download(url string) (io.ReadCloser, error) {
 	}
 	if strings.HasPrefix(url, c.baseURL) {
 		req.Header.Set("Authorization", c.authHeader)
+		req.Header.Set("Version", strconv.Itoa(AGENT_VERSION))
 	}
 	resp, err := c.h.Do(req)
 	if err != nil {
@@ -185,6 +192,7 @@ func (c *Client) SendTaskResult(taskID int, result map[string]interface{}) error
 		return fmt.Errorf("request create: %v", err)
 	}
 	req.Header.Set("Authorization", c.authHeader)
+	req.Header.Set("Version", strconv.Itoa(AGENT_VERSION))
 	resp, err := c.h.Do(req)
 	if err != nil {
 		return err

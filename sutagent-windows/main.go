@@ -38,7 +38,7 @@ func usage(errmsg string) {
 		"%s\n\n"+
 			"usage: %s <command>\n"+
 			"       where <command> is one of\n"+
-			"       install <Room-IDs>, remove, debug, start, stop.\n",
+			"       install, remove, debug, start, stop.\n",
 		errmsg, os.Args[0])
 	os.Exit(2)
 }
@@ -60,7 +60,7 @@ func installAgent(id string) error {
 		return err
 	}
 
-	client := agent.NewClient(baseURL)
+	client := agent.NewClient(apiURL)
 	if err := client.RegisterAgent(id, mid); err != nil {
 		log.Fatalln("Failed to register on central server:", err)
 	}
