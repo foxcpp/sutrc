@@ -4,8 +4,12 @@ github.com/denisbrodbeck/machineid v1.0.0 h1:6tMg1EaB3r/EfIqKS0on/pvkRBZJAXH3fmS
 github.com/denisbrodbeck/machineid v1.0.0/go.mod h1:dJUwb7PTidGDeYyUBmXZ2GphQBbjJCrnectwCyxcUSI=
 github.com/foxcpp/filedrop v1.0.0-rc1.0.20181014164435-80ebe4f325c4 h1:FB8yPvcm44QoivnT8xdBiOPivTqs5xdS1N5bXW6Vtx8=
 github.com/foxcpp/filedrop v1.0.0-rc1.0.20181014164435-80ebe4f325c4/go.mod h1:8H7ouAfRJNjAnXEsp1+MYiE/koHs7zCpOKFMJxDsuGI=
+github.com/foxcpp/filedrop v1.0.0-rc1.0.20181021220148-b5e1191dccbb h1:6777Av2ADYITDq3jhj6yfaVmSpTT8XT2ZOuEjb8vXyo=
+github.com/foxcpp/filedrop v1.0.0-rc1.0.20181021220148-b5e1191dccbb/go.mod h1:sC9B9c15VxAfaEgN4I46textN2NN48mhxQDr+eW3MhU=
 github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90 h1:QagTG5rauLt6pVVEhnVSrlIX4ifhVIZOwmw6x6D8TUw=
 github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90/go.mod h1:uF6rMu/1nvu+5DpiRLwusA6xB8zlkNoGzKn8lmYONUo=
+github.com/gofrs/uuid/v3 v3.1.1 h1:sqMK0jjyOJ7HV36lwG2GZ6TD2hK8RB7dJQVDakI65U4=
+github.com/gofrs/uuid/v3 v3.1.1/go.mod h1:xPwMqoocQ1L5G6pXX5BcE7N5jlzn2o19oqAKxwZW/kI=
 github.com/kbinani/screenshot v0.0.0-20180915023343-9cbbf14dec0a h1:JyLUYNnm0Tdij9bijN3NtCNcur8/5aeaMOYS5VE4x3U=
 github.com/kbinani/screenshot v0.0.0-20180915023343-9cbbf14dec0a/go.mod h1:f8GY5V3lRzakvEyr49P7hHRYoHtPr8zvj/7JodCoRzw=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
