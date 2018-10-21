@@ -233,7 +233,7 @@ func processes() ([]Process, error) {
 	entry.Size = uint32(unsafe.Sizeof(entry))
 	ret, _, _ := procProcess32First.Call(handle, uintptr(unsafe.Pointer(&entry)))
 	if ret == 0 {
-		return nil, fmt.Errorf("error retrieving process info.")
+		return nil, fmt.Errorf("error retrieving process info")
 	}
 
 	results := make([]Process, 0, 50)

@@ -2,8 +2,7 @@
 
 ### Installation
 
-`sutagent-windows install AGENTNAME` to install sutagent as a Windows
-service.
+`sutagent-windows install` to install sutagent as a Windows service.
 
 #### Other subcommands
 

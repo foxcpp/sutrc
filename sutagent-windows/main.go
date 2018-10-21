@@ -24,7 +24,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/denisbrodbeck/machineid"
+	"github.com/foxcpp/sutrc/agent"
 	"golang.org/x/sys/windows/svc"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -40,10 +43,37 @@ func usage(errmsg string) {
 	os.Exit(2)
 }
 
-func main() {
-	const svcname = "sutagent"
-	const description = "State University of Telecommunications Remote Control Service Agent"
+const svcname = "sutagent"
+const dispName = "State University of Telecommunications Remote Control Service Agent"
+const description = "Implements remote control functionality and performs background longpolling, " +
+	"allowing remote procedure execution as needed by sutserver according to internal protocol."
 
+func installAgent(id string) error {
+	// Generating a fingerprint for this machine
+	// ID parameter is passed with install command
+	mid, err := machineid.ProtectedID(id)
+	if err != nil {
+		return fmt.Errorf("failed generating machine ID: %s", err)
+	}
+	err = ioutil.WriteFile("C:\\Windows\\sutpc.key", []byte(mid), 0640)
+	if err != nil {
+		return err
+	}
+
+	client := agent.NewClient(baseURL)
+	if err := client.RegisterAgent(id, mid); err != nil {
+		log.Fatalln("Failed to register on central server:", err)
+	}
+
+	path, err := exePath()
+	if err != nil {
+		log.Fatalln("Failed to get program path:", err)
+	}
+
+	return agent.InstallService(path, svcname, dispName, description, 2)
+}
+
+func main() {
 	// If we are running as an interactive session, we need to launch the service by itself.
 	isInteractive, err := svc.IsAnInteractiveSession()
 	if err != nil {
@@ -51,7 +81,7 @@ func main() {
 	}
 	if !isInteractive {
 		// Assume we are running as a service and start polling server
-		runService(svcname, false)
+		RunService(svcname, false)
 		return
 	}
 
@@ -62,19 +92,23 @@ func main() {
 	cmd := strings.ToLower(os.Args[1])
 	switch cmd {
 	case "debug":
-		runService(svcname, true)
+		RunService(svcname, true)
 		return
 	case "install":
 		if len(os.Args) < 3 {
 			usage("invalid command usage")
 		}
-		err = installService(svcname, description, os.Args[2])
+		hostname, err := os.Hostname()
+		if err != nil {
+			log.Fatalf("failed to generate HWID: %v", err)
+		}
+		err = installAgent(hostname)
 	case "remove":
-		err = removeService(svcname)
+		err = agent.RemoveService(svcname)
 	case "start":
-		err = startService(svcname)
+		err = agent.StartService(svcname)
 	case "stop":
-		err = controlService(svcname, svc.Stop, svc.Stopped)
+		err = agent.ControlService(svcname, svc.Stop, svc.Stopped)
 	default:
 		usage(fmt.Sprintf("invalid command %s", cmd))
 	}
