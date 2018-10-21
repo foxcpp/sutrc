@@ -95,9 +95,6 @@ func main() {
 		RunService(svcname, true)
 		return
 	case "install":
-		if len(os.Args) < 3 {
-			usage("invalid command usage")
-		}
 		hostname, err := os.Hostname()
 		if err != nil {
 			log.Fatalf("failed to generate HWID: %v", err)
