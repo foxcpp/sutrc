@@ -89,6 +89,7 @@
                             <option data-target="power-control-form">${TASK_POWER_CONTROL}</option>
                             <option id="kill-proc-option" data-target="kill-proc-form">${TASK_KILL_PROC}</option>
                             <option id="screenshot-option" data-target="screenshot-form">${TASK_SCREENSHOT}</option>
+                            <option data-target="update-form">${TASK_UPDATE}</option>
                         </select>
                         <div class="send-task-type-form" id="execute-command-form">
                             <label for="send-task-command">${COMMAND_FIELD}</label>
@@ -107,6 +108,8 @@
                             </select>
                         </div>
                         <div class="send-task-type-form" id="screenshot-form" style="display: none">
+                        </div>
+                        <div class="send-task-type-form" id="update-form" style="display: none">
                         </div>
                     </form>
                     <footer class="modal-footer">
@@ -461,7 +464,7 @@
             })
 
             function registerAgentBtnCallback() {
-                // We modify DOM while loading agent list. We can't register callback ahead-of-time because there is no .agent-btn yet.
+                // We modify DOM while loading agent list. We cant register callback ahead-of-time because there is no .agent-btn yet.
                 $(".agent-btn").click(function (event) {
                     target = event.currentTarget.dataset.target
                     if (event.currentTarget.dataset.role == "send-task") {
@@ -537,6 +540,10 @@
                             type: "screenshot"
                         }
                         break;
+                    case "${TASK_UPDATE}":
+                        payload = {
+                            type: "update"
+                        }
                 }
                 $("#send-task-submit").text("${TASK_RESULT_WAIT}")
                 sendTaskXHR = submitTask(target, payload, function (result) {
@@ -594,6 +601,11 @@
                         $("#screenshot-result").children().remove()
                         $("#screenshot-result").show()
                         $("#screenshot-result").append('<a href="' + imgurl + '"><img class="screenshot-img" src="' + imgurl + '" /></a>')
+                    case "update":
+                        $("#result-modal").children(".modal-dialog").css("max-width", "500px")
+                        $("#result-status-code").text("0")
+                        $("#result-output").text("Update process initiated")
+                        break;
                     }
                 }
                 $(".modal").modal("hide")
@@ -649,6 +661,23 @@
                                 <div>\
                                     <a href="' + imgurl + '"><img class="screenshot-img" src="' + imgurl + '" /></a>\
                                 </div>')
+                        break
+                    case "update":
+                        $("#result-modal").children(".modal-dialog").css("max-width", "100%")
+                        if (res[i].error) {
+                            $("#broadcast-result").append('\
+                                    <b>' + res[i].target + '</b>\
+                                    <div>\
+                                        <pre>' + res[i].msg + '</pre>\
+                                    </div>')
+                            return
+                        }
+                        $("#broadcast-result").append('\
+                                <b>' + res[i].target + '</b>\
+                                <div>\
+                                    <pre>Update process initiated</pre>\
+                                </div>')
+                        break
                     }
                 }
                 $(".modal").modal("hide")

@@ -24,3 +24,12 @@ Stop installed service.
 output decoding and API base url. Change them!
 
 Latter can be set during build by using `./build.sh` script.
+
+**Note:** baseURL should specify without `api` suffix.
+I.e. it should contain `https://localhost/sutrc` and not `https://localhost/sutrc/api`.
+
+
+### Self-Update
+
+Compiled updater binary should be located at `BASEURL/sutupdate.exe` and latest version of
+agent's binary should be located at `BASEURL/sutagent.exe`.

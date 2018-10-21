@@ -371,3 +371,10 @@ Task result object:
     "url": "http://.../sutrc/filedrop/5cb1f372-ced2-11e8-9ce3-b083fe9824ac/screenshot.png"
 }
 ```
+
+#### Self-Update
+
+**JSON type string:** `"update"`
+
+Agent should update itself to latest version. Exact procedure depends on agent implementation, 
+see sutagent README for details.
