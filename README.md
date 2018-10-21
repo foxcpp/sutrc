@@ -1,5 +1,5 @@
 # sutrc protocol
-Lightweight remote control system for SUT university.
+Lightweight remote control system for State University of Telecommunications in Ukraine
 
 ### Background
 
