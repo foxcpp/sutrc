@@ -149,8 +149,8 @@ func startFiledrop(DBFile string) *filedrop.Server {
 	filedropConf.DB.Driver = "sqlite3"
 	filedropConf.DB.DSN = DBFile
 	filedropConf.Limits.MaxUses = 5
-	filedropConf.Limits.MaxFileSize = 32 * 1024 * 1024 // 32 MiB
-	filedropConf.Limits.MaxStoreSecs = 3600            // 1 hour
+	filedropConf.Limits.MaxFileSize = 1 * 1024 * 1024 * 1024 // 1 GiB
+	filedropConf.Limits.MaxStoreSecs = 3600                  // 1 hour
 	filedropConf.UploadAuth.Callback = func(r *http.Request) bool {
 		if checkAdminAuth(r.Header) || checkAgentAuth(r.Header) {
 			return true
