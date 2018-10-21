@@ -76,7 +76,10 @@
             <a class="navbar-brand" href="#">SUT Control Panel</a>
 
             <span class="navbar-text">
-                <button type="button" id="logout-btn" class="btn btn-light fas fa-sign-out-alt" aria-label="Refresh"></button>
+                <span id="selfreg-status">Agents selfreg</span>    
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-disable">${SELFREG_DISABLE}</button> 
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-enable">${SELFREG_ENABLE}</button> 
+                <button type="button" id="logout-btn" class="btn btn-outline-secondary fas fa-sign-out-alt" aria-label="Refresh"></button>
             </span>
         </nav>
         <div class="modal fade" id="send-task-modal" role="dialog" aria-hidden="true">
@@ -103,8 +106,8 @@
                         </div>
                         <div class="send-task-type-form" id="power-control-form" style="display: none">
                             <select class="form-control" id="send-task-power-option">
-                                <option data-target="shutdown /s /t 1">${ACTION_SHUTDOWN}</option>
-                                <option data-target="shutdown /r /t 1">${ACTION_REBOOT}</option>
+                                <option data-target="shutdown /s /t 1">${POWER_SHUTDOWN}</option>
+                                <option data-target="shutdown /r /t 1">${POWER_REBOOT}</option>
                             </select>
                         </div>
                         <div class="send-task-type-form" id="kill-proc-form" style="display: none">
@@ -223,12 +226,12 @@
                 </div>
             </div>
         </div>
-        <main class="container-fluid">
+        <main class="container">
             <header class="twoheader">
                 <h3 class="twoheader-left">${AGENTS_LIST_TITLE}</h3>
                 <div class="twoheader-right">
                     <span style="color:#bbb">${AUTOUPDATE_NOTE}</span>
-                    <button type="button" id="agents-reload-btn" class="twoheader-right btn btn-transparent" aria-label="Refresh">
+                    <button type="button" id="agents-reload-btn" class="twoheader-right btn btn-floating" aria-label="Refresh">
                         <span class="fas fa-sync-alt"></span>
                     </button>
                 </div>
@@ -237,11 +240,6 @@
                 <noscript><p class="alert alert-danger">${JAVASCRIPT_REQUIRED}</p></noscript>
                 <!-- Populated dynamically by JS -->
             </div>
-            <footer class="page-footer">
-                <span id="selfreg-status">Agents selfreg status UNKNOWN</span>    
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-disable">${SELFREG_DISABLE}</button> 
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-enable">${SELFREG_ENABLE}</button> 
-            </footer>
         </main>
 
         <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha384-tsQFqpEReu7ZLhBV2VZlAu7zcOV+rXbYlF2cqB8txI/8aZajjp4Bqd+V6D5IgvKT" crossorigin="anonymous"></script>
@@ -309,7 +307,11 @@
 
                     var groups = $(".agents-group")
                     for (var i = 0; i < groups.length; i++) {
-                        $(groups[i]).children(".broadcast-btn").attr("disabled", $(groups[i]).children(".online-agent").length == 0)
+                        if ($(groups[i]).children(".online-agent").length == 0) {
+                            $(groups[i]).children(".broadcast-btn").attr("disabled", true)
+                        } else {
+                            $(groups[i]).children(".broadcast-btn").removeAttr("disabled")
+                        }
                     }
                 }, function(msg) {
                     showAlert("agents-load-error", "#agentslist", "${AGENTLIST_UPDATE_FAIL} " + msg)
@@ -317,7 +319,7 @@
                 })
             }
 
-            //window.setInterval(loadAgentsList, 5000)
+            window.setInterval(loadAgentsList, 5000)
 
             function populateTaskList() {
                 $("#proc-select-option").append("<option>Loading processes list...</option>")
@@ -525,6 +527,7 @@
                 $(".broadcast-btn").click(function (event) {
                     broadcast = true
                     target = groupOnlineAgents(event.target.dataset.target).join(",")
+                    $("#send-task-modal-title").text("${SEND_TASK_TO_GROUP} " + event.target.dataset.target)
                     updateSendTaskForm()
                     $("#send-task-modal").modal("show")
                 })
@@ -620,12 +623,15 @@
                 $("#single-result").hide()
 
                 if (result.error) {
+                    $("#single-result").show()
                     $("#result-status-code").text("${STATUS_ERROR_SERVER}")
                     $("#result-output").text(result.msg)
                 } else if (result.results[0].error) {
+                    $("#single-result").show()
                     $("#result-status-code").text("${STATUS_ERROR_AGENT}")
                     $("#result-output").text(result.results[0].msg)
                 } else {
+                    console.log("suc")
                     switch (type) {
                     case "execute_cmd":
                         $("#result-modal").children(".modal-dialog").css("max-width", "500px")
@@ -660,7 +666,7 @@
                 var res = result.results
                 for (var i = 0; i < res.length; i++) {
                     switch (type) {
-                    case "execute_task":
+                    case "execute_cmd":
                         $("#result-modal").children(".modal-dialog").css("max-width", "500px")
                         var status
                         var output

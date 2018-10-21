@@ -48,7 +48,7 @@ figure {
 .btn-floating:focus {
     box-shadow: none;
 }
-.container-fluid {
+.container {
     padding-top: 25px;
 }
 .styleless-link, .styleless-link:visited, .styleless-link:focus, .styleless-link:active {

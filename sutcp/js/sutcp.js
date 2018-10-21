@@ -11,7 +11,7 @@ function addGroupToDOM(name, id) {
             <span class="twoheader-right fas fa-arrow-down fa-lg" />\
         </a>\
         <div class="collapse agents-group" data-parent="#agentslist" data-id="' + id + '" id="agents-group-' + id + '" aria-expanded="false">\
-            <button type="button" data-role="broadcast-task" data-target="' + id + '" class="btn btn-transparent broadcast-btn">\
+            <button type="button" data-role="broadcast-task" data-target="' + id + '" class="btn btn-floating broadcast-btn">\
                 ${BROADCAST_TASK_BTN}\
             </button>\
         </div>\
