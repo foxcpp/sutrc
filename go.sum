@@ -6,8 +6,12 @@ github.com/foxcpp/filedrop v1.0.0-rc1.0.20181014164435-80ebe4f325c4 h1:FB8yPvcm4
 github.com/foxcpp/filedrop v1.0.0-rc1.0.20181014164435-80ebe4f325c4/go.mod h1:8H7ouAfRJNjAnXEsp1+MYiE/koHs7zCpOKFMJxDsuGI=
 github.com/foxcpp/filedrop v1.0.0-rc1.0.20181021220148-b5e1191dccbb h1:6777Av2ADYITDq3jhj6yfaVmSpTT8XT2ZOuEjb8vXyo=
 github.com/foxcpp/filedrop v1.0.0-rc1.0.20181021220148-b5e1191dccbb/go.mod h1:sC9B9c15VxAfaEgN4I46textN2NN48mhxQDr+eW3MhU=
+github.com/foxcpp/filedrop v1.0.0-rc2 h1:iINOXxzSb87jtB46c9Z5defnl+iFwg+DZN5pJECd6C0=
+github.com/foxcpp/filedrop v1.0.0-rc2/go.mod h1:sC9B9c15VxAfaEgN4I46textN2NN48mhxQDr+eW3MhU=
 github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90 h1:QagTG5rauLt6pVVEhnVSrlIX4ifhVIZOwmw6x6D8TUw=
 github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90/go.mod h1:uF6rMu/1nvu+5DpiRLwusA6xB8zlkNoGzKn8lmYONUo=
+github.com/go-sql-driver/mysql v1.4.0 h1:7LxgVwFb2hIQtMm87NdgAVfXjnt4OePseqT1tKx+opk=
+github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/gofrs/uuid/v3 v3.1.1 h1:sqMK0jjyOJ7HV36lwG2GZ6TD2hK8RB7dJQVDakI65U4=
 github.com/gofrs/uuid/v3 v3.1.1/go.mod h1:xPwMqoocQ1L5G6pXX5BcE7N5jlzn2o19oqAKxwZW/kI=
 github.com/kbinani/screenshot v0.0.0-20180915023343-9cbbf14dec0a h1:JyLUYNnm0Tdij9bijN3NtCNcur8/5aeaMOYS5VE4x3U=
@@ -17,6 +21,8 @@ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORN
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
+github.com/lib/pq v1.0.0 h1:X5PMW56eZitiTeO7tKzZxFCSpbFZJtkMMooicw2us9A=
+github.com/lib/pq v1.0.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
 github.com/lxn/win v0.0.0-20181011103406-d19d56ae2f2d h1:ESZuFkuv8bKAy0M7GnQpaDQlHsuYyM1b1CdRd9GkXrU=
 github.com/lxn/win v0.0.0-20181011103406-d19d56ae2f2d/go.mod h1:jACzEp9RV7NhfPJQkiCNTteU4nkZZVlvkNpYtVOZPfE=
 github.com/mattn/go-sqlite3 v1.9.0 h1:pDRiWfl+++eC2FEFRy6jXmQlvp4Yh3z1MJKg4UeYM/4=

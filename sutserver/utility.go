@@ -25,14 +25,21 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 func addAgentSubcmd() {
 	if len(os.Args) != 5 {
-		fmt.Println("Usage:", os.Args[0], "addagent DBFILE NAME HWID")
+		fmt.Println("Usage:", os.Args[0], "addagent DRIVER=DSN NAME HWID")
 		return
 	}
-	db, err := OpenDB(os.Args[2])
+	driverDSN := strings.Split(os.Args[2], "=")
+	if len(driverDSN) != 2 {
+		fmt.Println("Invalid db string, wanted DRIVER=DSN")
+		return
+	}
+	driver, DSN := driverDSN[0], driverDSN[1]
+	db, err := OpenDB(driver, DSN)
 	if err != nil {
 		fmt.Println("Failed to open DB:", err)
 		return
@@ -50,10 +57,16 @@ func addAgentSubcmd() {
 
 func remAgentSubcmd() {
 	if len(os.Args) != 4 {
-		fmt.Println("Usage:", os.Args[0], "remagent DBFILE NAME")
+		fmt.Println("Usage:", os.Args[0], "remagent DRIVER=DSN NAME")
 		return
 	}
-	db, err := OpenDB(os.Args[2])
+	driverDSN := strings.Split(os.Args[2], "=")
+	if len(driverDSN) != 2 {
+		fmt.Println("Invalid db string, wanted DRIVER=DSN")
+		return
+	}
+	driver, DSN := driverDSN[0], driverDSN[1]
+	db, err := OpenDB(driver, DSN)
 	if err != nil {
 		fmt.Println("Failed to open DB:", err)
 		return
@@ -70,9 +83,15 @@ func remAgentSubcmd() {
 
 func addAccountSubcmd() {
 	if len(os.Args) != 4 {
-		fmt.Println("Usage:", os.Args[0], "addaccount DBFILE TOKEN")
+		fmt.Println("Usage:", os.Args[0], "addaccount DRIVER=DSN TOKEN")
 	}
-	db, err := OpenDB(os.Args[2])
+	driverDSN := strings.Split(os.Args[2], "=")
+	if len(driverDSN) != 2 {
+		fmt.Println("Invalid db string, wanted DRIVER=DSN")
+		return
+	}
+	driver, DSN := driverDSN[0], driverDSN[1]
+	db, err := OpenDB(driver, DSN)
 	if err != nil {
 		fmt.Println("Failed to open DB:", err)
 		return
@@ -89,10 +108,16 @@ func addAccountSubcmd() {
 
 func remAccountSubcmd() {
 	if len(os.Args) != 4 {
-		fmt.Println("Usage:", os.Args[0], "remaccount DB TOKEN")
+		fmt.Println("Usage:", os.Args[0], "remaccount DRIVER=DSN TOKEN")
 		return
 	}
-	db, err := OpenDB(os.Args[2])
+	driverDSN := strings.Split(os.Args[2], "=")
+	if len(driverDSN) != 2 {
+		fmt.Println("Invalid db string, wanted DRIVER=DSN")
+		return
+	}
+	driver, DSN := driverDSN[0], driverDSN[1]
+	db, err := OpenDB(driver, DSN)
 	if err != nil {
 		fmt.Println("Failed to open DB:", err)
 		return

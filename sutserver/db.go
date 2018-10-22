@@ -26,6 +26,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"strings"
 )
 
 type DB struct {
@@ -51,17 +52,44 @@ type DB struct {
 	checkSession *sql.Stmt
 }
 
-func OpenDB(path string) (*DB, error) {
+func OpenDB(driver, dsn string) (*DB, error) {
 	db := new(DB)
+
+	if driver == "sqlite3" {
+		// We apply some tricks for SQLite to avoid "database is locked" errors.
+
+		if !strings.HasPrefix(dsn, "file:") {
+			dsn = "file:" + dsn
+		}
+		if !strings.Contains(dsn, "?") {
+			dsn = dsn + "?"
+		}
+		dsn = dsn + "cache=shared&_journal=WAL&_busy_timeout=5000"
+	}
+
 	var err error
-	db.d, err = sql.Open("sqlite3", "file:"+path+"?cache=shared&_journal=WAL&_busy_timeout=5000")
+	db.d, err = sql.Open(driver, dsn)
 	if err != nil {
+		return nil, err
+	}
+	if err := db.d.Ping(); err != nil {
 		return nil, err
 	}
 
 	if err := db.initSchema(); err != nil {
 		panic(err)
 	}
+
+	if driver == "sqlite3" {
+		db.d.Exec(`PRAGMA foreign_keys = ON`)
+		db.d.Exec(`PRAGMA auto_vacuum = INCREMENTAL`)
+		db.d.Exec(`PRAGMA journal_mode = WAL`)
+		db.d.Exec(`PRAGMA defer_foreign_keys = ON`)
+		db.d.Exec(`PRAGMA synchronous = NORMAL`)
+		db.d.Exec(`PRAGMA temp_store = MEMORY`)
+		db.d.Exec(`PRAGMA cache_size = 5000`)
+	}
+
 	if err := db.initStmts(); err != nil {
 		panic(err)
 	}
@@ -176,14 +204,6 @@ func (db *DB) CheckSession(sid string) bool {
 }
 
 func (db *DB) initSchema() error {
-	db.d.Exec(`PRAGMA foreign_keys = ON`)
-	db.d.Exec(`PRAGMA auto_vacuum = INCREMENTAL`)
-	db.d.Exec(`PRAGMA journal_mode = WAL`)
-	db.d.Exec(`PRAGMA defer_foreign_keys = ON`)
-	db.d.Exec(`PRAGMA synchronous = NORMAL`)
-	db.d.Exec(`PRAGMA temp_store = MEMORY`)
-	db.d.Exec(`PRAGMA cache_size = 5000`)
-
 	_, err := db.d.Exec(`CREATE TABLE IF NOT EXISTS admins (
 		token TEXT PRIMARY KEY NOT NULL
 	)`)

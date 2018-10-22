@@ -30,7 +30,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -47,16 +47,16 @@ var onlineAgentsLock sync.Mutex
 
 func main() {
 	if len(os.Args) == 1 {
-		fmt.Println(os.Args[0], "server PORT DBFILE")
+		fmt.Println(os.Args[0], "server PORT DRIVER=DBFILE")
 		fmt.Println("\tLaunch server on PORT using DBFILE.")
-		fmt.Println(os.Args[0], "addaccount DBFILE TOKEN")
+		fmt.Println(os.Args[0], "addaccount DRIVER=DBFILE TOKEN")
 		fmt.Println("\tAdd with token TOKEN to DBFILE.")
-		fmt.Println(os.Args[0], "remaccount DBFILE TOKEN")
+		fmt.Println(os.Args[0], "remaccount DRIVER=DBFILE TOKEN")
 		fmt.Println("\tRemove account with TOKEN from DBFILE.")
-		fmt.Println(os.Args[0], "addagent DBFILE NAME HWID")
+		fmt.Println(os.Args[0], "addagent DRIVER=DSN NAME HWID")
 		fmt.Println("\tAdd agent NAME with HWID to DBFILE.")
-		fmt.Println(os.Args[0], "remagent DBFILE NAME")
-		fmt.Println("\tRemove agent NAME from DBFILE.")
+		fmt.Println(os.Args[0], "remagent DRIVER=DSN NAME")
+		fmt.Println("\tRemove agent NAME from DRIVER=DSN.")
 		return
 	}
 
@@ -88,12 +88,18 @@ func debugLog(v ...interface{}) {
 }
 
 func serverSubcommand() {
-	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "server PORT DBFILE")
+	if len(os.Args) != 5 {
+		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "server PORT DRIVER=DSN FILEDROP_STORAGE")
 		os.Exit(1)
 	}
 	port := os.Args[2]
-	DBFile := os.Args[3]
+
+	driverDSN := strings.Split(os.Args[3], "=")
+	if len(driverDSN) != 2 {
+		log.Fatalln("Invalid db string, wanted DRIVER=DSN")
+	}
+	driver, DSN := driverDSN[0], driverDSN[1]
+	filedropStorage := os.Args[4]
 
 	if os.Getenv("USING_SYSTEMD") == "1" {
 		// Don't print timestamp in log because journald captures it anyway.
@@ -101,13 +107,13 @@ func serverSubcommand() {
 	}
 
 	var err error
-	db, err = OpenDB(DBFile)
+	db, err = OpenDB(driver, DSN)
 	if err != nil {
 		log.Fatalln("Failed to open DB:", err)
 	}
 	defer db.Close()
 
-	filedropSrv := startFiledrop(DBFile)
+	filedropSrv := startFiledrop(filedropStorage, DSN, driver)
 	defer filedropSrv.Close()
 
 	onlineAgents = make(map[string]bool)
@@ -143,11 +149,11 @@ func serverSubcommand() {
 	<-sig
 }
 
-func startFiledrop(DBFile string) *filedrop.Server {
+func startFiledrop(storage, driver, dsn string) *filedrop.Server {
 	filedropConf := filedrop.Default
-	filedropConf.StorageDir = filepath.Join(filepath.Dir(DBFile), "filedrop")
-	filedropConf.DB.Driver = "sqlite3"
-	filedropConf.DB.DSN = DBFile
+	filedropConf.StorageDir = storage
+	filedropConf.DB.Driver = driver
+	filedropConf.DB.DSN = dsn
 	filedropConf.Limits.MaxUses = 5
 	filedropConf.Limits.MaxFileSize = 1 * 1024 * 1024 * 1024 // 1 GiB
 	filedropConf.Limits.MaxStoreSecs = 3600                  // 1 hour

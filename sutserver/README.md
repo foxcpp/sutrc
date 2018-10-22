@@ -3,18 +3,23 @@ Remote control system for SUT university - task dispatcher daemon.
 
 ### Server configuration
 
-Just compile it using regular Go tools (make sure you have C compiler
-because we use SQLite) and run it as follows:
+**Use corresponding build tag to enable support for your SQL database!**
+Build with `postgresql` tag to get PostgreSQL support.
+Build with `mysql` tag to get MySQL support.
+Support for SQLite3 is included by default, use `nosqlite3` tag to disable it.
+
+Just compile it using regular Go tools and run it as follows:
 ```
-sutserver server 8000 database_path
+sutserver server 8000 DRIVER=DSN STORAGE
 ```
-`8000` is port to listen on. It's recommended to use reverse proxy
-because sutserver lacks TLS support.
-Database with all stuff will be stored in spcified file (`database_path`). Note that however
-two temporary files will be created during server execution.
-`database_path-wal` and `database_path-shm`. Both **should be copied too**
-if you are moving database somewhere else. They usually will be deleted
-on **normal** server shutdown.
+DRIVER is driver to use for SQL DB (same as build tag you used to enable it).
+DSN is Data Source Name, see underlying driver documentation for exact format you should use:
+- PostgreSQL https://godoc.org/github.com/lib/pq
+  TLDR: `postgres://user:password@address/dbname`
+- MySQL https://github.com/go-sql-driver/mysql
+  TLDR: `username:password@protocol(address)/dbname`
+- SQLite3 https://github.com/mattn/go-sqlite3
+  TLDR `filepath`
 
 If you are using using HTTPS (what you should do of course) then you need to 
 configure your reverse proxy to pass "X-HTTPS-Downstream: 1" and Host headers,

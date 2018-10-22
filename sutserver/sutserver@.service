@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=notify
 NotifyAccess=all
-ExecStart=/usr/bin/sutserver server %i /var/lib/sutserver-%i/auth.db
+ExecStart=/usr/bin/sutserver server %i sqlite3=/var/lib/sutserver-%i/auth.db /var/lib/sutserver-%i/filedrop
 Restart=on-failure
 DynamicUser=yes
 StateDirectory=sutserver-%i
