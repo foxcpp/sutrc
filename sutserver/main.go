@@ -113,7 +113,7 @@ func serverSubcommand() {
 	}
 	defer db.Close()
 
-	filedropSrv := startFiledrop(filedropStorage, DSN, driver)
+	filedropSrv := startFiledrop(filedropStorage, driver, DSN)
 	defer filedropSrv.Close()
 
 	onlineAgents = make(map[string]bool)

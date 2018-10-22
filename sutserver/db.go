@@ -30,7 +30,8 @@ import (
 )
 
 type DB struct {
-	d *sql.DB
+	d      *sql.DB
+	driver string
 
 	// Account management
 	checkUsrExistance *sql.Stmt
@@ -54,6 +55,7 @@ type DB struct {
 
 func OpenDB(driver, dsn string) (*DB, error) {
 	db := new(DB)
+	db.driver = driver
 
 	if driver == "sqlite3" {
 		// We apply some tricks for SQLite to avoid "database is locked" errors.
@@ -205,22 +207,22 @@ func (db *DB) CheckSession(sid string) bool {
 
 func (db *DB) initSchema() error {
 	_, err := db.d.Exec(`CREATE TABLE IF NOT EXISTS admins (
-		token TEXT PRIMARY KEY NOT NULL
+		token VARCHAR(256) PRIMARY KEY NOT NULL
 	)`)
 	if err != nil {
 		return err
 	}
 
 	_, err = db.d.Exec(`CREATE TABLE IF NOT EXISTS agents (
-		name TEXT PRIMARY KEY NOT NULL,
-		hwid TEXT UNIQUE NOT NULL
+		name VARCHAR(256) PRIMARY KEY NOT NULL,
+		hwid VARCHAR(256) UNIQUE NOT NULL
 	)`)
 	if err != nil {
 		return err
 	}
 
 	_, err = db.d.Exec(`CREATE TABLE IF NOT EXISTS sessions (
-		sessionId TEXT PRIMARY KEY NOT NULL
+		sessionId CHAR(64) PRIMARY KEY NOT NULL
 	)`)
 	return err
 }
@@ -233,11 +235,17 @@ func (db *DB) initStmts() error {
 		return err
 	}
 
-	db.checkUsrExistance, err = db.d.Prepare(`SELECT COUNT() FROM admins WHERE token = ?`)
+	db.checkUsrExistance, err = db.d.Prepare(`SELECT COUNT(token) FROM admins WHERE token = ?`)
 	if err != nil {
 		return err
 	}
-	db.addAccount, err = db.d.Prepare(`INSERT OR IGNORE INTO admins VALUES (?)`)
+	if db.driver != "mysql" {
+		// Everybody except MySQL support this syntax.
+		db.addAccount, err = db.d.Prepare(`INSERT INTO admins VALUES (?) ON CONFLICT DO NOTHING`)
+	} else {
+		// But MySQL is special boi.
+		db.addAccount, err = db.d.Prepare(`INSERT IGNORE INTO admins VALUES (?)`)
+	}
 	if err != nil {
 		return err
 	}
@@ -258,11 +266,11 @@ func (db *DB) initStmts() error {
 	if err != nil {
 		return err
 	}
-	db.checkAgentByName, err = db.d.Prepare(`SELECT COUNT() FROM agents WHERE name = ?`)
+	db.checkAgentByName, err = db.d.Prepare(`SELECT COUNT(name) FROM agents WHERE name = ?`)
 	if err != nil {
 		return err
 	}
-	db.checkAgentByHWID, err = db.d.Prepare(`SELECT COUNT() FROM agents WHERE hwid = ?`)
+	db.checkAgentByHWID, err = db.d.Prepare(`SELECT COUNT(hwid) FROM agents WHERE hwid = ?`)
 	if err != nil {
 		return err
 	}
@@ -279,7 +287,7 @@ func (db *DB) initStmts() error {
 	if err != nil {
 		return err
 	}
-	db.checkSession, err = db.d.Prepare(`SELECT COUNT() FROM sessions WHERE sessionId = ?`)
+	db.checkSession, err = db.d.Prepare(`SELECT COUNT(sessionId) FROM sessions WHERE sessionId = ?`)
 	if err != nil {
 		return err
 	}
