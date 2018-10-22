@@ -1,7 +1,25 @@
-function groupPresentInDOM(id) {
-    return $("#agents-group-" + id).length != 0
+/*
+
+** How groups are represented and manipulated in page DOM
+
+Each group gets agent list container with id in form agent-group-XXX, where XXX is 
+name of the group. For example, agents 210-4, 210-2, 210-foobar belong to group 210.
+So they will be added to DOM element with id agent-group-210.
+
+*/
+
+// Check if group element is already added to DOM.
+//
+// name - group name, i.e. 210.
+function groupPresentInDOM(name) {
+    return $("#agents-group-" + name).length != 0
 }
 
+// Add new group element to page.
+//
+// name - element title (something like "Group #210").
+// id   - internal group name, will be used to refer to group
+//        in all other code.
 function addGroupToDOM(name, id) {
     $("#agentslist").append('\
     <div class="agents-group-root">\
@@ -19,6 +37,13 @@ function addGroupToDOM(name, id) {
     </div>')
 }
 
+// Agent list DOM generator utility. Add agent to list in DOM.
+//
+// group - internal name of group to which agent belongs.
+// name  - agent name (it will be used both for display and for internal identification).
+// online - agent availability status (true = online, false = offline).
+//
+// Agent entry added with online=false will have interaciton buttons (send task, browse FS) disabled.
 function addAgentToDOM(group, name, online) {
     var title = name
     var disabledAttr = ""
@@ -50,10 +75,18 @@ function addAgentToDOM(group, name, online) {
                             </figure>')
 }
 
+// Agent list DOM generator utility. Remove empty (without agents) groups from DOM.
+//
+// See populate loadAgentsList for details.
 function removeEmptyGroups() {
     $(".agents-group:not(:has(.agent-entry))").parent(".agents-group-root").remove()
 }
 
+// Agent list DOM generator utility. Update agent list counters for each group.
+//
+// Agent list counters are these (M online, N total) in title of each group entry.
+// This function will update values in DOM in corrodance with information about
+// agents **already added to DOM**.
 function updateGroupCounts() {
     var groups = $(".agents-group")
     for (var i = 0; i < groups.length; i++) {
@@ -66,19 +99,38 @@ function updateGroupCounts() {
     }
 }
 
+// Show alert message somewhere on page.
+//
+// type - CSS class used for alert styling.
+// You probably want to use one of Bootstrap's styles here:
+// - alert-danger
+// - alert-info
+// - alert-warning
+// etc, see Bootstrap docs.
+// 
+// id - unique alert ID.
+// If alert with same id already exists on page - it will removed.
+//
+// where - CSS selector of alert parent element.
+// Alert will be added before first $(where)'s children.
+//
+// text - Alert contents (text).
 function showAlertGeneric(id, type, where, text) {
     $("#" + id).alert("close")
     $(where).prepend('<div class="alert ' + type + ' alert-dismissible" id="' + id + '" role="alert">' + text + '.')
 }
 
+// Wrapper for showAlertGeneric, shows alert with type set to alert-danger.
 function showAlert(id, where, text) {
     showAlertGeneric(id, "alert-danger", where, text)
 }
 
+// Wrapper for showAlertGeneric, shows alert with type set to alert-info.
 function showNotify(id, where, text) {
     showAlertGeneric(id, "alert-info", where, text)
 }
 
+// Returns list of IDs of online agents from certain group with specified name.
 function groupOnlineAgents(id) {
     var res = []
     var onlineAgents = $("#agents-group-" + id).children(".online-agent")
@@ -88,11 +140,18 @@ function groupOnlineAgents(id) {
     return res
 }
 
+// Filesystem path utility. Check if passed path have some logical parent element.
+//
+// For example, C:\ do not have parent, but C:\Windows does (its parent is C:\).
 function haveFSParent(path) {
     var parts = path.split("\\")
     return !(parts.length == 2 && parts[1] == "")
 }
 
+// Filesystem path utility. Return logical parent of passed path.
+//
+// Example: parentFSPath("C:\Windows") == "C:\".
+// Invalid value will be returned is path doesn't have a logical parent.
 function parentFSPath(path) {
     if (path.endsWith("\\")) {
         return path.split("\\").slice(0, -2).join("\\") + "\\"
@@ -101,14 +160,21 @@ function parentFSPath(path) {
     }
 }
 
+// Filesystem path utility. Get last element from path.
+//
+// For example filename("C:\\foobar") will return "foobar".
 function filename(path) {
     if (path.endsWith("\\")) {
-        return path.split("\\").slice(-2)
+        return path.split("\\").slice(-2)[0]
     } else {
-        return path.split("\\").slice(-1)
+        return path.split("\\").slice(-1)[0]
     }
 }
 
+// File browser DOM generator utility. Add ".." meta-directory
+// to top of the list of current view.
+//
+// Added entry will get ID upper-dir-link.
 function addUpperDirEntry() {
     $("#fs-browser-body").append('\
         <div id="upper-dir-entry" class="fs-entry directory twoheader">\
@@ -118,6 +184,12 @@ function addUpperDirEntry() {
         </div>')
 }
 
+// File browser DOM generator utility. Add filesystem entry returned by server
+// to end of current view.
+//
+// entry is object as returned by agent in task result object.
+// So it must have entry.dir, entry.name and entry.fullpath fields.
+// Entry DOM root will get data-path attribute with value from entry.fullpath.
 function addFSEntryToDOM(entry) {
     var dirClass = ""
     if (entry.dir) {

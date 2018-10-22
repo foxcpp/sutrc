@@ -10,7 +10,6 @@
             body {
                 background-color: #eee;
             }
-
             .login-form {
                 margin: 15% auto;
                 width: 300px;
@@ -20,29 +19,24 @@
                 border: solid 1px #999;
                 overflow: auto;
             }
-
             .form-element:focus {
                 box-shadow: none;
             }
-
             .form-element {
                 margin-bottom: 3px;
                 margin-top: 3px;
                 border-radius: 0 !important;
             }
-
             .form-button {
                 float: right;
                 margin-right: 0px;
                 height: 38px;
                 width: 66px;
             }
-
             .form-note {
                 color: #888;
                 line-height: 42px;
             }
-
             .alert-danger {
                 background-color: crimson;
                 color: #fff;
@@ -76,8 +70,7 @@
                 }
 
                 $("#login-btn").text("...")
-                login($("#token").val(), function(token) {
-                    Cookies.set("token", token)
+                login($("#token").val(), function() {
                     window.location = "dashboard.html"
                     $("#login-btn").text("Login")
                 }, function() {

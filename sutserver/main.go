@@ -155,7 +155,7 @@ func startFiledrop(DBFile string) *filedrop.Server {
 		if checkAdminAuth(r.Header) || checkAgentAuth(r.Header) {
 			return true
 		}
-		cookie, err := r.Cookie("token")
+		cookie, err := r.Cookie("sutcp_session")
 		if err != nil {
 
 			return false
