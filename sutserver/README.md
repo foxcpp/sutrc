@@ -10,23 +10,21 @@ Support for SQLite3 is included by default, use `nosqlite3` tag to disable it.
 
 Just compile it using regular Go tools and run it as follows:
 ```
-sutserver server 8000 DRIVER=DSN STORAGE
+sutserver server 8000 CONFIGFILE
 ```
-DRIVER is driver to use for SQL DB (same as build tag you used to enable it).
-DSN is Data Source Name, see underlying driver documentation for exact format you should use:
-- PostgreSQL https://godoc.org/github.com/lib/pq
-  TLDR: `postgres://user:password@address/dbname`
-- MySQL https://github.com/go-sql-driver/mysql
-  TLDR: `username:password@protocol(address)/dbname`
-- SQLite3 https://github.com/mattn/go-sqlite3
-  TLDR `filepath`
 
-If you are using using HTTPS (what you should do of course) then you need to 
-configure your reverse proxy to pass "X-HTTPS-Downstream: 1" and Host headers,
-otherwise file downloading from agents may work incorrectly (see
-[filedrop](https://github.com/foxcpp/filedrop) documentation for details).
+`CONFIGFILE` is path to configuration file.
+See [documented example](sutserver.example.yml) in this repo for
+info about what should be in it.
 
-Here is example of correct configuration for nginx with sutserver running at 8000 port:
+If you are using using HTTPS (what you should do of course) then you
+need to configure your reverse proxy to pass "X-HTTPS-Downstream: 1" and
+`Host` headers, otherwise file downloading from agents may work
+incorrectly (see [filedrop](https://github.com/foxcpp/filedrop)
+documentation for details).
+
+Here is example of correct configuration for nginx with sutserver
+running at 8000 port (HTTPS is used):
 ```
 location ~ /sutrc/api {
     proxy_pass http://127.0.0.1:8000;
@@ -39,13 +37,14 @@ location ~ /sutrc/api {
 
 ### systemd unit
 
-`sutserver@.service` is provided for convenience.
+`sutserver.service` is provided for convenience.
+
 Copy it to `/etc/systemd/systemd` and start like this:
 ```
-systemctl start sutserver@8000
+systemctl start sutserver
 ```
-Where `8000` is port to listen on. Note that specifing different port will make
-it use different database file (`/var/lib/sutserver-PORT/auth.db`).
+
+It will use config file from `/etc/sutserver.yml`.
 
 ### Command-line utility how-to
 

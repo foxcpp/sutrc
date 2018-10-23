@@ -1,0 +1,36 @@
+# IP:PORT to listen on.
+# Use 0.0.0.0 to listen on all interfaces, however we recommend using
+# reverse proxy for caching and stuff.
+listen_on: 127.0.0.1:8000
+
+# When using reverse proxy you MUST NOT use request rewriting
+# or something similar to add prefix to API URLs. This will break filedrop server.
+# Instead change URL prefix here. Note: Add leading but not trailing slash.
+#
+# url_prefix=/sutrc/api means that sutserver will handle requests
+# coming to http(s)://host/sutrc/api/anything.
+# See README.md for correct nginx configuration.
+url_prefix: /sutrc/api
+
+db:
+  # Driver to use for SQL DB (same as build tag you used to enable it).
+  driver: sqlite3
+  # Data Source Name, see underlying driver documentation for exact format you should use:
+  # - PostgreSQL https://godoc.org/github.com/lib/pq
+  #   TLDR: `postgres://user:password@address/dbname`
+  # - MySQL https://github.com/go-sql-driver/mysql
+  #   TLDR: `username:password@protocol(address)/dbname`
+  # - SQLite3 https://github.com/mattn/go-sqlite3
+  #   TLDR: `filepath`
+  dsn: /var/lib/sutserver/auth.db
+
+# You can override options from built-in filedrop server config here.
+filedrop:
+  storage_dir: /var/lib/sutserver/filedrop
+  limits:
+    max_uses: 5
+    max_store_secs: 3600 # 1 hour
+    # Max. size of file that can be transferred from/to agent.
+    max_file_size: 1073741824 # 1 GiB
+  # This value will be used in case X-HTTPS-Downstream header is missing.
+  https_downstream: true

@@ -24,24 +24,33 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
-	"strings"
+
+	"gopkg.in/yaml.v2"
 )
+
+func openDBFromConf(configFile string) (*DB, error) {
+	confBlob, err := ioutil.ReadFile(os.Args[2])
+	if err != nil {
+		return nil, err
+	}
+	conf := Config{}
+	if err := yaml.Unmarshal(confBlob, &conf); err != nil {
+		return nil, err
+	}
+	db, err = OpenDB(conf.DB.Driver, conf.DB.DSN)
+	return db, err
+}
 
 func addAgentSubcmd() {
 	if len(os.Args) != 5 {
-		fmt.Println("Usage:", os.Args[0], "addagent DRIVER=DSN NAME HWID")
+		fmt.Println("Usage:", os.Args[0], "addagent CONFIGFILE NAME HWID")
 		return
 	}
-	driverDSN := strings.Split(os.Args[2], "=")
-	if len(driverDSN) != 2 {
-		fmt.Println("Invalid db string, wanted DRIVER=DSN")
-		return
-	}
-	driver, DSN := driverDSN[0], driverDSN[1]
-	db, err := OpenDB(driver, DSN)
+	db, err := openDBFromConf(os.Args[2])
 	if err != nil {
-		fmt.Println("Failed to open DB:", err)
+		fmt.Println(err)
 		return
 	}
 	defer db.Close()
@@ -57,18 +66,12 @@ func addAgentSubcmd() {
 
 func remAgentSubcmd() {
 	if len(os.Args) != 4 {
-		fmt.Println("Usage:", os.Args[0], "remagent DRIVER=DSN NAME")
+		fmt.Println("Usage:", os.Args[0], "remagent CONFIGFILE NAME")
 		return
 	}
-	driverDSN := strings.Split(os.Args[2], "=")
-	if len(driverDSN) != 2 {
-		fmt.Println("Invalid db string, wanted DRIVER=DSN")
-		return
-	}
-	driver, DSN := driverDSN[0], driverDSN[1]
-	db, err := OpenDB(driver, DSN)
+	db, err := openDBFromConf(os.Args[2])
 	if err != nil {
-		fmt.Println("Failed to open DB:", err)
+		fmt.Println(err)
 		return
 	}
 	defer db.Close()
@@ -85,15 +88,9 @@ func addAccountSubcmd() {
 	if len(os.Args) != 4 {
 		fmt.Println("Usage:", os.Args[0], "addaccount DRIVER=DSN TOKEN")
 	}
-	driverDSN := strings.Split(os.Args[2], "=")
-	if len(driverDSN) != 2 {
-		fmt.Println("Invalid db string, wanted DRIVER=DSN")
-		return
-	}
-	driver, DSN := driverDSN[0], driverDSN[1]
-	db, err := OpenDB(driver, DSN)
+	db, err := openDBFromConf(os.Args[2])
 	if err != nil {
-		fmt.Println("Failed to open DB:", err)
+		fmt.Println(err)
 		return
 	}
 	defer db.Close()
@@ -108,18 +105,12 @@ func addAccountSubcmd() {
 
 func remAccountSubcmd() {
 	if len(os.Args) != 4 {
-		fmt.Println("Usage:", os.Args[0], "remaccount DRIVER=DSN TOKEN")
+		fmt.Println("Usage:", os.Args[0], "remaccount CONFIGFILE TOKEN")
 		return
 	}
-	driverDSN := strings.Split(os.Args[2], "=")
-	if len(driverDSN) != 2 {
-		fmt.Println("Invalid db string, wanted DRIVER=DSN")
-		return
-	}
-	driver, DSN := driverDSN[0], driverDSN[1]
-	db, err := OpenDB(driver, DSN)
+	db, err := openDBFromConf(os.Args[2])
 	if err != nil {
-		fmt.Println("Failed to open DB:", err)
+		fmt.Println(err)
 		return
 	}
 	defer db.Close()

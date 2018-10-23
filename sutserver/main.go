@@ -25,17 +25,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/foxcpp/filedrop"
-	_ "github.com/mattn/go-sqlite3"
+	"gopkg.in/yaml.v2"
 )
 
 const PathPrefix = "/sutrc/api"
@@ -47,16 +47,16 @@ var onlineAgentsLock sync.Mutex
 
 func main() {
 	if len(os.Args) == 1 {
-		fmt.Println(os.Args[0], "server PORT DRIVER=DBFILE")
-		fmt.Println("\tLaunch server on PORT using DBFILE.")
-		fmt.Println(os.Args[0], "addaccount DRIVER=DBFILE TOKEN")
-		fmt.Println("\tAdd with token TOKEN to DBFILE.")
-		fmt.Println(os.Args[0], "remaccount DRIVER=DBFILE TOKEN")
-		fmt.Println("\tRemove account with TOKEN from DBFILE.")
-		fmt.Println(os.Args[0], "addagent DRIVER=DSN NAME HWID")
-		fmt.Println("\tAdd agent NAME with HWID to DBFILE.")
-		fmt.Println(os.Args[0], "remagent DRIVER=DSN NAME")
-		fmt.Println("\tRemove agent NAME from DRIVER=DSN.")
+		fmt.Println(os.Args[0], "server CONFIGFILE")
+		fmt.Println("\tLaunch server with configuration from CONFIGFILE.")
+		fmt.Println(os.Args[0], "addaccount CONFIGFILE TOKEN")
+		fmt.Println("\tAdd account token TOKEN to server DB from CONFIGFILE.")
+		fmt.Println(os.Args[0], "remaccount CONFIGFILE TOKEN")
+		fmt.Println("\tRemove account token TOKEN from server DB from CONFIGFILE.")
+		fmt.Println(os.Args[0], "addagent CONFIGFILE NAME HWID")
+		fmt.Println("\tAdd agent NAME with HWID to server DB from CONFIGFILE.")
+		fmt.Println(os.Args[0], "remagent CONFIGFILE NAME")
+		fmt.Println("\tRemove agent NAME from server DB from CONFIGFILE.")
 		return
 	}
 
@@ -88,32 +88,34 @@ func debugLog(v ...interface{}) {
 }
 
 func serverSubcommand() {
-	if len(os.Args) != 5 {
-		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "server PORT DRIVER=DSN FILEDROP_STORAGE")
+	if len(os.Args) != 3 {
+		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "server CONFIGFILE")
 		os.Exit(1)
 	}
-	port := os.Args[2]
-
-	driverDSN := strings.Split(os.Args[3], "=")
-	if len(driverDSN) != 2 {
-		log.Fatalln("Invalid db string, wanted DRIVER=DSN")
-	}
-	driver, DSN := driverDSN[0], driverDSN[1]
-	filedropStorage := os.Args[4]
 
 	if os.Getenv("USING_SYSTEMD") == "1" {
 		// Don't print timestamp in log because journald captures it anyway.
 		log.SetFlags(0)
 	}
 
-	var err error
-	db, err = OpenDB(driver, DSN)
+	confBlob, err := ioutil.ReadFile(os.Args[2])
+	if err != nil {
+		log.Fatalln("Failed to read config file:", err)
+	}
+	conf := Config{}
+	if err := yaml.Unmarshal(confBlob, &conf); err != nil {
+		log.Fatalln("Failed to parse config file:", err)
+	}
+
+	db, err = OpenDB(conf.DB.Driver, conf.DB.DSN)
 	if err != nil {
 		log.Fatalln("Failed to open DB:", err)
 	}
 	defer db.Close()
 
-	filedropSrv := startFiledrop(filedropStorage, driver, DSN)
+	conf.Filedrop.DB.Driver = conf.DB.Driver
+	conf.Filedrop.DB.DSN = conf.DB.DSN
+	filedropSrv := startFiledrop(conf.Filedrop)
 	defer filedropSrv.Close()
 
 	onlineAgents = make(map[string]bool)
@@ -129,14 +131,14 @@ func serverSubcommand() {
 	http.Handle(PathPrefix+"/filedrop/", filedropSrv)
 
 	go func() {
-		log.Println("Listening on :" + port)
-		if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Println("Listening on", conf.ListenOn)
+		if err := http.ListenAndServe(conf.ListenOn, nil); err != nil {
 			log.Fatalln(err)
 		}
 	}()
 
 	if os.Getenv("USING_SYSTEMD") == "1" {
-		cmd := exec.Command("systemd-notify", "--ready", `--status=Listening on 0.0.0.0:`+port)
+		cmd := exec.Command("systemd-notify", "--ready", `--status=Listening on `+conf.ListenOn)
 		if out, err := cmd.Output(); err != nil {
 			log.Println("Failed to notify systemd about successful startup:", err)
 			log.Println(string(out))
@@ -149,15 +151,8 @@ func serverSubcommand() {
 	<-sig
 }
 
-func startFiledrop(storage, driver, dsn string) *filedrop.Server {
-	filedropConf := filedrop.Default
-	filedropConf.StorageDir = storage
-	filedropConf.DB.Driver = driver
-	filedropConf.DB.DSN = dsn
-	filedropConf.Limits.MaxUses = 5
-	filedropConf.Limits.MaxFileSize = 1 * 1024 * 1024 * 1024 // 1 GiB
-	filedropConf.Limits.MaxStoreSecs = 3600                  // 1 hour
-	filedropConf.UploadAuth.Callback = func(r *http.Request) bool {
+func startFiledrop(conf filedrop.Config) *filedrop.Server {
+	conf.UploadAuth.Callback = func(r *http.Request) bool {
 		if checkAdminAuth(r.Header) || checkAgentAuth(r.Header) {
 			return true
 		}
@@ -168,11 +163,11 @@ func startFiledrop(storage, driver, dsn string) *filedrop.Server {
 		}
 		return db.CheckSession(cookie.Value)
 	}
-	filedropConf.DownloadAuth.Callback = filedropConf.UploadAuth.Callback
-	if err := os.MkdirAll(filedropConf.StorageDir, 0777); err != nil {
+	conf.DownloadAuth.Callback = conf.UploadAuth.Callback
+	if err := os.MkdirAll(conf.StorageDir, 0777); err != nil {
 		log.Fatalln("Failed to create filedrop storage dir:", err)
 	}
-	filedropSrv, err := filedrop.New(filedropConf)
+	filedropSrv, err := filedrop.New(conf)
 	if err != nil {
 		log.Fatalln("Failed to start filedrop:", err)
 	}
@@ -283,21 +278,19 @@ func agentsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	user := r.URL.Query().Get("user")
-
 	if !db.CheckAuth(r.URL.Query().Get("token")) {
-		log.Println("Invalid login info submitted for", user, "from", r.RemoteAddr)
+		log.Println("Invalid login info submitted from", r.RemoteAddr, "("+r.Header.Get("X-Real-IP")+")")
 		writeError(w, http.StatusForbidden, "Invalid credentials")
 		return
 	}
 
-	token, err := db.InitSession(user)
+	token, err := db.InitSession()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Println("Initialized session for", user+"; token="+token[:6]+"...")
+	log.Println("Initialized session with token=" + token[:6] + "...")
 	writeJson(w, map[string]interface{}{"error": false, "token": token})
 }
 

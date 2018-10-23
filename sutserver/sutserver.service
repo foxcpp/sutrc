@@ -5,10 +5,10 @@ After=network.target
 [Service]
 Type=notify
 NotifyAccess=all
-ExecStart=/usr/bin/sutserver server %i sqlite3=/var/lib/sutserver-%i/auth.db /var/lib/sutserver-%i/filedrop
+ExecStart=/usr/bin/sutserver server /etc/sutserver.yml
 Restart=on-failure
 DynamicUser=yes
-StateDirectory=sutserver-%i
+StateDirectory=sutserver
 TimeoutStartSec=10
 Environment="USING_SYSTEMD=1"
 

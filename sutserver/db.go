@@ -180,7 +180,7 @@ func (db *DB) GetAgentName(hwid string) (string, error) {
 	return name, row.Scan(&name)
 }
 
-func (db *DB) InitSession(user string) (string, error) {
+func (db *DB) InitSession() (string, error) {
 	rawSID := make([]byte, 32)
 	if _, err := rand.Read(rawSID); err != nil {
 		return "", err
