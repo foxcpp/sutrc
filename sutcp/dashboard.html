@@ -599,7 +599,7 @@
                     case "${TASK_KILL_PROC}":
                         payload = {
                             type: "execute_cmd",
-                            cmd: "taskkill /pid " + $("#proc-select-option")[0].selectedOptions[0].dataset.pid
+                            cmd: "taskkill /f /pid " + $("#proc-select-option")[0].selectedOptions[0].dataset.pid
                         }
                         break;
                     case "${TASK_POWER_CONTROL}":
