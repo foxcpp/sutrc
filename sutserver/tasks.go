@@ -212,7 +212,10 @@ func waitTaskResult(agentID string, taskID int, r *http.Request, timeout time.Du
 	taskResChan := taskResults[agentID][taskID]
 	taskMetaLock.Unlock()
 	select {
-	case res := <-taskResChan:
+	case res, ok := <-taskResChan:
+		if !ok {
+			return map[string]interface{}{"error": true, "msg": "Agent deregistered"}
+		}
 		debugLog("Forwarding task", taskID, "result from", agentID, "to", r.Header.Get("Authorization")[:6])
 		return res
 	case <-time.After(timeout):
@@ -260,7 +263,11 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	select {
 	case <-time.After(timeout):
 		writeJson(w, map[string]interface{}{})
-	case task := <-tasksChan:
+	case task, ok := <-tasksChan:
+		if !ok {
+			writeError(w, http.StatusForbidden, "Agent deregistered")
+			return
+		}
 		debugLog("Sending task", task["id"].(int), "to", agentID)
 		writeJson(w, task)
 	}
