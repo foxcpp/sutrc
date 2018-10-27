@@ -26,10 +26,11 @@ package agent
 
 import (
 	"fmt"
+	"time"
+
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
-	"time"
 )
 
 // InstallService installs Windows service to system
@@ -41,7 +42,7 @@ import (
 func InstallService(path, name, displayName, desc string, startMode uint32) error {
 	m, err := mgr.Connect()
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to connect to the service manager: %s", err)
 	}
 	defer m.Disconnect()
 	s, err := m.OpenService(name)
@@ -51,10 +52,11 @@ func InstallService(path, name, displayName, desc string, startMode uint32) erro
 	}
 	s, err = m.CreateService(name, path,
 		mgr.Config{
-			DisplayName: displayName,
-			Description: desc,
-			StartType: startMode,
-			ServiceStartName: "SYSTEM"},
+			DisplayName:      displayName,
+			Description:      desc,
+			StartType:        startMode,
+			ServiceStartName: "LocalSystem",
+		},
 		"is", "auto-started")
 	if err != nil {
 		return err

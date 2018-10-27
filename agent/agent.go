@@ -64,6 +64,9 @@ func (c *Client) RegisterAgent(name, hwid string) error {
 		return err
 	}
 	if resp.StatusCode/100 != 2 { // check for non 2xx code, not just 200.
+		if resp.StatusCode == 403 {
+			return errors.New("access denied")
+		}
 		return errors.New(errorMessage(resp))
 	}
 	return nil
@@ -91,6 +94,9 @@ func (c *Client) PollTasks() (id int, type_ string, body map[string]interface{},
 		return -1, "", nil, err
 	}
 	if resp.StatusCode/100 != 2 { // check for non 2xx code, not just 200.
+		if resp.StatusCode == 403 {
+			return -1, "", nil, errors.New("access denied")
+		}
 		return -1, "", nil, errors.New(errorMessage(resp))
 	}
 
@@ -136,7 +142,7 @@ func (c *Client) PollTasks() (id int, type_ string, body map[string]interface{},
 }
 
 func (c *Client) UploadFile(src io.Reader) (string, error) {
-	req, err := http.NewRequest("POST", c.baseURL + "/filedrop/agent_upload", src)
+	req, err := http.NewRequest("POST", c.baseURL+"/filedrop/agent_upload", src)
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +153,10 @@ func (c *Client) UploadFile(src io.Reader) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode / 100 != 2 {
+	if resp.StatusCode/100 != 2 {
+		if resp.StatusCode == 403 {
+			return "", errors.New("access denied")
+		}
 		return "", errors.New("HTTP " + resp.Status)
 	}
 	urlBytes, err := ioutil.ReadAll(resp.Body)
@@ -170,8 +179,11 @@ func (c *Client) Download(url string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode / 100 != 2 {
+	if resp.StatusCode/100 != 2 {
 		resp.Body.Close()
+		if resp.StatusCode == 403 {
+			return nil, errors.New("access denied")
+		}
 		return resp.Body, errors.New("HTTP " + resp.Status)
 	}
 	return resp.Body, nil
@@ -198,6 +210,9 @@ func (c *Client) SendTaskResult(taskID int, result map[string]interface{}) error
 		return err
 	}
 	if resp.StatusCode/100 != 2 { // check for non 2xx code, not just 200.
+		if resp.StatusCode == 403 {
+			return errors.New("access denied")
+		}
 		return errors.New(errorMessage(resp))
 	}
 	return nil
