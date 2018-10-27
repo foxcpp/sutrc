@@ -31,7 +31,6 @@ import (
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/foxcpp/sutrc/agent"
-	"golang.org/x/sys/windows/svc"
 )
 
 func usage(errmsg string) {
@@ -47,78 +46,47 @@ func usage(errmsg string) {
 const svcname = "sutagent"
 const dispName = "State University of Telecommunications Remote Control Service Agent"
 const description = "Implements remote control functionality and performs background longpolling, " +
-	"allowing remote procedure execution as needed by sutserver according to internal protocol."
-
-func installAgent(id string) error {
-	// Generating a fingerprint for this machine
-	// ID parameter is passed with install command
-	mid, err := machineid.ProtectedID(id)
-	if err != nil {
-		return fmt.Errorf("failed generating machine ID: %s", err)
-	}
-	fmt.Println("HWID:", mid)
-	fmt.Println("Saving to C:\\Windows\\sutpc.key")
-	err = ioutil.WriteFile("C:\\Windows\\sutpc.key", []byte(mid), 0640)
-	if err != nil {
-		return fmt.Errorf("failed to save a key for this PC: %s", err)
-	}
-	fmt.Println("Trying to register client")
-	client := agent.NewClient(apiURL)
-	if err := client.RegisterAgent(id, mid); err != nil {
-		return fmt.Errorf("failed to register on central server: %s", err)
-	}
-	fmt.Println("Success. Now installing the service itself")
-	path, err := exePath()
-	if err != nil {
-		return fmt.Errorf("failed to get program path: %s", err)
-	}
-	return agent.InstallService(path, svcname, dispName, description, 2)
-}
+	"."
 
 func main() {
-	// If we are running as an interactive session, we need to launch the service by itself.
-	isInteractive, err := svc.IsAnInteractiveSession()
-	if err != nil {
-		log.Fatalf("failed to determine if we are running in an interactive session: %v", err)
-	}
-	if !isInteractive {
-		// Assume we are running as a service and start polling server
-		RunService(svcname, false)
-		return
+
+	if len(os.Args) >= 2 {
+		cmd := strings.ToLower(os.Args[1])
+		switch cmd {
+		case "debug":
+			break
+		case "install":
+			fmt.Println("Installing service")
+			hostname, err := os.Hostname()
+			if err != nil {
+				log.Fatalf("failed to get hostname: %v", err)
+			}
+			fmt.Println("Hostname:", hostname)
+			// Generating a fingerprint for this machine
+			// ID parameter is passed with install command
+			mid, err := machineid.ProtectedID(hostname)
+			if err != nil {
+				log.Fatalf("failed generating machine ID: %s", err)
+			}
+			fmt.Println("HWID:", mid)
+			err = ioutil.WriteFile("C:\\Windows\\sutpc.key", []byte(mid), 0640)
+			if err != nil {
+				log.Fatalf("failed to save a key for this PC: %s", err)
+			}
+			fmt.Println("Trying to register client")
+			client := agent.NewClient(apiURL)
+			if err := client.RegisterAgent(hostname, mid); err != nil {
+				log.Fatalf("failed to register on central server: %s", err)
+			}
+			return
+		default:
+			usage(fmt.Sprintf("invalid command %s", cmd))
+		}
 	}
 
-	if len(os.Args) < 2 {
-		usage("no command specified")
-	}
-
-	cmd := strings.ToLower(os.Args[1])
-	switch cmd {
-	case "debug":
-		RunService(svcname, true)
-		return
-	case "install":
-		fmt.Println("Installing service")
-		hostname, err := os.Hostname()
-		if err != nil {
-			log.Fatalf("failed to get hostname: %v", err)
-		}
-		fmt.Println("Hostname:", hostname)
-		err = installAgent(hostname)
-		if err == nil {
-			fmt.Println("Done.")
-		} else {
-			panic(err)
-		}
-	case "remove":
-		err = agent.RemoveService(svcname)
-	case "start":
-		err = agent.StartService(svcname)
-	case "stop":
-		err = agent.ControlService(svcname, svc.Stop, svc.Stopped)
-	default:
-		usage(fmt.Sprintf("invalid command %s", cmd))
-	}
+	hwid, err := ioutil.ReadFile("C:\\Windows\\sutpc.key")
 	if err != nil {
-		log.Fatalf("failed to %s %s: %v", cmd, svcname, err)
+		log.Fatalln("Failed to read authorization key:", err)
 	}
+	longPoll(string(hwid))
 }

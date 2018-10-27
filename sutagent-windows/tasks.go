@@ -23,8 +23,7 @@
 package main
 
 import (
-	"github.com/foxcpp/sutrc/agent"
-	"github.com/kbinani/screenshot"
+	"fmt"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -34,6 +33,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
+
+	"github.com/foxcpp/sutrc/agent"
+	"github.com/kbinani/screenshot"
 )
 
 func deleteFileTask(client *agent.Client, taskID int, body map[string]interface{}) {
@@ -152,7 +154,7 @@ func screenshotTask(client *agent.Client, taskID int, _ map[string]interface{}) 
 	if err != nil {
 		client.SendTaskResult(taskID, map[string]interface{}{
 			"error": true,
-			"msg": err.Error(),
+			"msg":   err.Error(),
 		})
 		return
 	}
@@ -170,7 +172,7 @@ func screenshotTask(client *agent.Client, taskID int, _ map[string]interface{}) 
 	if err != nil {
 		client.SendTaskResult(taskID, map[string]interface{}{
 			"error": true,
-			"msg": err.Error(),
+			"msg":   err.Error(),
 		})
 		return
 	}
@@ -180,6 +182,7 @@ func screenshotTask(client *agent.Client, taskID int, _ map[string]interface{}) 
 	})
 }
 
+/*
 func proclistTask(client *agent.Client, taskID int, _ map[string]interface{}) {
 	procs, err := Processes()
 	if err != nil {
@@ -198,6 +201,15 @@ func proclistTask(client *agent.Client, taskID int, _ map[string]interface{}) {
 	}
 	responseMap := map[string]interface{}{
 		"procs": windowsArray,
+	}
+	client.SendTaskResult(taskID, responseMap)
+}
+*/
+
+func proclistTask(client *agent.Client, taskID int, _ map[string]interface{}) {
+	windows := ListWindows()
+	responseMap := map[string]interface{}{
+		"procs": windows,
 	}
 	client.SendTaskResult(taskID, responseMap)
 }
@@ -240,7 +252,7 @@ func executeCmdTask(client *agent.Client, taskID int, body map[string]interface{
 func selfUpdateTask(client *agent.Client, taskID int, _ map[string]interface{}) {
 	const executable = "C:\\Windows\\sutupdate.exe"
 	out, err := os.Create(executable)
-	if err != nil  {
+	if err != nil {
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Cannot access local file: " + err.Error()})
 		return
 	}
@@ -257,8 +269,11 @@ func selfUpdateTask(client *agent.Client, taskID int, _ map[string]interface{}) 
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to save the file: " + err.Error()})
 		return
 	}
+	out.Close()
 
-	exec.Command(executable, "install").Run()
 	client.SendTaskResult(taskID, map[string]interface{}{"error": false, "msg": "Update process was initiated"})
-	agent.StartService("sutupdate")
+	err = exec.Command("cmd", "/C", "start "+executable).Run()
+	if err != nil {
+		fmt.Println("Failed to start sutupdate service")
+	}
 }
