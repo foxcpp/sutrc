@@ -92,7 +92,6 @@ func (m *sutService) Execute(args []string, r <-chan svc.ChangeRequest, changes 
 			elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
 		}
 	}
-	return
 }
 
 func RunService(name string, isDebug bool) {

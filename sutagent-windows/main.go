@@ -24,13 +24,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/denisbrodbeck/machineid"
-	"github.com/foxcpp/sutrc/agent"
-	"golang.org/x/sys/windows/svc"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/denisbrodbeck/machineid"
+	"github.com/foxcpp/sutrc/agent"
+	"golang.org/x/sys/windows/svc"
 )
 
 func usage(errmsg string) {
@@ -55,21 +56,22 @@ func installAgent(id string) error {
 	if err != nil {
 		return fmt.Errorf("failed generating machine ID: %s", err)
 	}
+	fmt.Println("HWID:", mid)
+	fmt.Println("Saving to C:\\Windows\\sutpc.key")
 	err = ioutil.WriteFile("C:\\Windows\\sutpc.key", []byte(mid), 0640)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to save a key for this PC: %s", err)
 	}
-
+	fmt.Println("Trying to register client")
 	client := agent.NewClient(apiURL)
 	if err := client.RegisterAgent(id, mid); err != nil {
-		log.Fatalln("Failed to register on central server:", err)
+		return fmt.Errorf("failed to register on central server: %s", err)
 	}
-
+	fmt.Println("Success. Now installing the service itself")
 	path, err := exePath()
 	if err != nil {
-		log.Fatalln("Failed to get program path:", err)
+		return fmt.Errorf("failed to get program path: %s", err)
 	}
-
 	return agent.InstallService(path, svcname, dispName, description, 2)
 }
 
@@ -95,11 +97,18 @@ func main() {
 		RunService(svcname, true)
 		return
 	case "install":
+		fmt.Println("Installing service")
 		hostname, err := os.Hostname()
 		if err != nil {
-			log.Fatalf("failed to generate HWID: %v", err)
+			log.Fatalf("failed to get hostname: %v", err)
 		}
+		fmt.Println("Hostname:", hostname)
 		err = installAgent(hostname)
+		if err == nil {
+			fmt.Println("Done.")
+		} else {
+			panic(err)
+		}
 	case "remove":
 		err = agent.RemoveService(svcname)
 	case "start":
