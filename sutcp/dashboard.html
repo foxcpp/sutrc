@@ -155,6 +155,19 @@
                 </div>
             </div>
         </div>
+        <div class="modal fade" id="agent-delete-modal" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        ${DELETE_WARNING} <span id="deleting-agent-name">AGENT</span>?
+                    </div>
+                    <footer class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
+                        <button id="agent-delete-confirm-btn" type="button" class="btn btn-danger">${DELETE_BTN}</button>
+                    </footer>
+                </div>
+            </div>
+        </div>
         <div class="modal fade" id="rename-modal" role="dialog" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
@@ -545,6 +558,10 @@
                         $("#new-agent-name").val(target)
                         $("#rename-modal").modal("show")
                     }
+                    if (event.currentTarget.dataset.role == "delete-agent") {
+                        $("#deleting-agent-name").text(target)
+                        $("#agent-delete-modal").modal("show")
+                    }
                     if (event.currentTarget.dataset.role == "browse-fs") {
                         curDir = "C:\\"
                         updateFSForm()
@@ -566,6 +583,18 @@
                     $(".agents-group-header").children(".fa-arrow-down").removeClass("fa-rotate-180")
                 })
             }
+            
+            $("#agent-delete-confirm-btn").click(function(event) {
+                $("#agent-delete-submit").text("...")
+                agentDeleteXHR = deleteAgent(target, function() {
+                    loadAgentsList()
+                    $("#agent-delete-modal").modal("hide")
+                    $("#agent-delete-submit").text("Delete")
+                }, function(msg) {
+                    showAlert("delete-agent-error", "#rename-agent-form", "${RENAME_AGENT_FAIL} " + msg)
+                    $("#agent-delete-submit").text("Delete")
+                })
+            })
 
             // Confirm agent rename button in modal.
             $("#rename-submit").click(function(event) {
