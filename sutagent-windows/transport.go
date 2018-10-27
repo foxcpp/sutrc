@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/foxcpp/sutrc/agent"
+	"golang.org/x/sys/windows/svc"
 )
 
 var baseURL string
@@ -50,6 +51,11 @@ func longPoll(hwid string) {
 		id, ttype, body, err := client.PollTasks()
 		if err != nil {
 			log.Println("Error during task polling:", err)
+			if err.Error() == "access denied" {
+				log.Println("Exiting!")
+				go agent.ControlService(svcname, svc.Stop, svc.Stopped)
+				return
+			}
 			if id != -1 {
 				go client.SendTaskResult(id, map[string]interface{}{"error": true, "msg": err.Error()})
 			}
