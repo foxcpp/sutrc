@@ -15,6 +15,8 @@ github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG
 github.com/gofrs/uuid/v3 v3.1.1 h1:sqMK0jjyOJ7HV36lwG2GZ6TD2hK8RB7dJQVDakI65U4=
 github.com/gofrs/uuid/v3 v3.1.1/go.mod h1:xPwMqoocQ1L5G6pXX5BcE7N5jlzn2o19oqAKxwZW/kI=
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
+github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf h1:WfD7VjIE6z8dIvMsI4/s+1qr5EL+zoIGev1BQj1eoJ8=
+github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf/go.mod h1:hyb9oH7vZsitZCiBt0ZvifOrB+qc8PS5IiilCIb87rg=
 github.com/kbinani/screenshot v0.0.0-20180915023343-9cbbf14dec0a h1:JyLUYNnm0Tdij9bijN3NtCNcur8/5aeaMOYS5VE4x3U=
 github.com/kbinani/screenshot v0.0.0-20180915023343-9cbbf14dec0a/go.mod h1:f8GY5V3lRzakvEyr49P7hHRYoHtPr8zvj/7JodCoRzw=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=

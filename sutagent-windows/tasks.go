@@ -23,7 +23,6 @@
 package main
 
 import (
-	"fmt"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -36,6 +35,7 @@ import (
 
 	"github.com/foxcpp/sutrc/agent"
 	"github.com/kbinani/screenshot"
+	"github.com/inconshreveable/go-update"
 )
 
 func deleteFileTask(client *agent.Client, taskID int, body map[string]interface{}) {
@@ -250,30 +250,17 @@ func executeCmdTask(client *agent.Client, taskID int, body map[string]interface{
 }
 
 func selfUpdateTask(client *agent.Client, taskID int, _ map[string]interface{}) {
-	const executable = "C:\\Windows\\sutupdate.exe"
-	out, err := os.Create(executable)
-	if err != nil {
-		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Cannot access local file: " + err.Error()})
-		return
-	}
-	defer out.Close()
-
 	inp, err := client.Download(baseURL + "/sutupdate.exe")
 	if err != nil {
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to fetch latest agent version: " + err.Error()})
 		return
 	}
-
-	_, err = io.Copy(out, inp)
+	err = update.Apply(inp, update.Options{})
 	if err != nil {
-		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to save the file: " + err.Error()})
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to fetch latest agent version: " + err.Error()})
 		return
 	}
-	out.Close()
+	inp.Close()
 
 	client.SendTaskResult(taskID, map[string]interface{}{"error": false, "msg": "Update process was initiated"})
-	err = exec.Command("cmd", "/C", "start "+executable).Run()
-	if err != nil {
-		fmt.Println("Failed to start sutupdate service")
-	}
 }

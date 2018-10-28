@@ -24,10 +24,13 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/foxcpp/sutrc/agent"
@@ -48,7 +51,18 @@ const dispName = "State University of Telecommunications Remote Control Service 
 const description = "Implements remote control functionality and performs background longpolling, " +
 	"."
 
+var baseURL string
+var apiURL = baseURL + "/api"
+
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
+	logFile, err := os.OpenFile("sutagent.log",
+		os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0660)
+	if err != nil {
+		log.Fatalln("Unable to configure logging:", err)
+	}
+	multiWriter := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(multiWriter)
 
 	if len(os.Args) >= 2 {
 		cmd := strings.ToLower(os.Args[1])
@@ -88,5 +102,67 @@ func main() {
 	if err != nil {
 		log.Fatalln("Failed to read authorization key:", err)
 	}
-	longPoll(string(hwid))
+	log.Println("Starting longpolling")
+
+	client := agent.NewClient(apiURL)
+	client.SupportedTaskTypes = []string{
+		"execute_cmd",
+		"proclist",
+		"downloadfile",
+		"uploadfile",
+		"dircontents",
+		"deletefile",
+		"movefile",
+		"screenshot",
+		"update",
+	}
+	client.UseAccount(string(hwid))
+	for {
+		id, ttype, body, err := client.PollTasks()
+		if err != nil {
+			log.Println("Error during task polling:", err)
+			if err.Error() == "access denied" {
+				log.Println("Exiting!")
+				os.Exit(1)
+				return
+			}
+			if id != -1 {
+				go client.SendTaskResult(id, map[string]interface{}{"error": true, "msg": err.Error()})
+			}
+			time.Sleep(30 * time.Second)
+			continue
+		}
+		if id == -1 {
+			continue
+		}
+		log.Println("Received task", body)
+		switch ttype {
+		case "execute_cmd":
+			executeCmdTask(&client, id, body)
+		case "proclist":
+			proclistTask(&client, id, body)
+		case "downloadfile":
+			downloadFileTask(&client, id, body)
+		case "uploadfile":
+			uploadFileTask(&client, id, body)
+		case "dircontents":
+			dirContentsTask(&client, id, body)
+		case "deletefile":
+			deleteFileTask(&client, id, body)
+		case "movefile":
+			moveFileTask(&client, id, body)
+		case "screenshot":
+			screenshotTask(&client, id, body)
+		case "update":
+			selfUpdateTask(&client, id, body)
+			logFile.Close()
+			out, err := exec.Command(os.Args[0]).Output()
+			if err != nil {
+				fmt.Println(string(out))
+				panic(err)
+			}
+			return
+		}
+	}
+
 }

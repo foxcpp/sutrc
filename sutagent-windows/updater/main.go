@@ -27,6 +27,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/foxcpp/sutrc/agent"
 )
@@ -38,7 +39,7 @@ const description = "Performs sutagent service rotation and updates agent execut
 var baseURL string
 
 func main() {
-
+	time.Sleep(time.Second * 3)
 	client := agent.NewClient(baseURL)
 	const executable = "C:\\Windows\\sutagent.exe"
 	exec.Command("cmd", "/C", "taskkill /im sutagent.exe").Run()
@@ -61,7 +62,7 @@ func main() {
 	}
 	out.Close()
 
-	err = exec.Command("cmd", "/C", "start "+executable).Run()
+	err = exec.Command(executable).Start()
 	if err != nil {
 		log.Fatalf("failed to start agent executable: %v", err)
 	}
