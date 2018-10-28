@@ -83,6 +83,24 @@ function renameAgent(from, to, successCallback, failureCallback) {
     $.ajax({
         method: "PATCH",
         url: apiPrefix + "/agents?" + jQuery.param({id: from, newId: to}),
+        dataType: 'text',
+        headers: {
+            Authorization: Cookies.get(cookieName)
+        }
+    }).done(function () {
+        successCallback()
+    }).fail(function (resp) {
+        failureCallback(getErrorMessage(resp))
+    })
+}
+
+// De-register agent from server.
+function deleteAgent(id, successCallback, failureCallback) {
+    "use strict"
+    $.ajax({
+        method: "DELETE",
+        url: apiPrefix + "/agents?" + jQuery.param({id: id}),
+        dataType: 'text',
         headers: {
             Authorization: Cookies.get(cookieName)
         }

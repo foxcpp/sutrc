@@ -204,77 +204,127 @@ func agentsSelfregHandler(w http.ResponseWriter, r *http.Request) {
 
 func agentsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
-		if !agentsSelfregEnabled {
-			writeError(w, http.StatusMethodNotAllowed, "Agents self-registration is disabled")
-			return
-		}
-
-		name := r.URL.Query().Get("name")
-		hwid := r.URL.Query().Get("hwid")
-		if name == "" || hwid == "" {
-			writeError(w, http.StatusBadRequest, "Pass 'name' and 'hwid' in query string")
-			return
-		}
-
-		if err := db.AddAgent(name, hwid); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
+		agentSelfreg(w, r)
 	} else if r.Method == http.MethodGet {
-		if !checkAdminAuth(r.Header) {
-			writeError(w, http.StatusForbidden, "Authorization failure")
-			return
-		}
-
-		agents, err := db.ListAgents()
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		onlineAgentsL := make(map[string]bool)
-		for _, agent := range agents {
-			onlineAgentsL[agent] = onlineAgents[agent]
-		}
-
-		writeJson(w, map[string]interface{}{"error": false, "agents": agents, "online": onlineAgentsL})
+		agentListHandler(w, r)
 	} else if r.Method == http.MethodPatch {
-		if !checkAdminAuth(r.Header) {
-			writeError(w, http.StatusForbidden, "Authorization failure")
-			return
-		}
-
-		oldId := r.URL.Query().Get("id")
-		newId := r.URL.Query().Get("newId")
-		if oldId == "" || newId == "" {
-			writeError(w, http.StatusBadRequest, "Pass 'id' and 'oldId' in query string.")
-			return
-		}
-
-		if !db.AgentExists(oldId) {
-			writeError(w, http.StatusNotFound, "Agent doesn't exists")
-			return
-		}
-
-		if err := db.RenameAgent(oldId, newId); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		taskMetaLock.Lock()
-		taskResults[newId] = taskResults[oldId]
-		delete(taskResults, oldId)
-		tasks[newId] = tasks[oldId]
-		delete(tasks, oldId)
-		taskMetaLock.Unlock()
-
-		onlineAgentsLock.Lock()
-		onlineAgents[newId] = onlineAgents[oldId]
-		delete(onlineAgents, oldId)
-		onlineAgentsLock.Unlock()
+		renameAgentHandler(w, r)
+	} else if r.Method == http.MethodDelete {
+		deregAgent(w, r)
 	} else {
-		writeError(w, http.StatusMethodNotAllowed, "/agents only supports POST, GET and PATCH")
+		writeError(w, http.StatusMethodNotAllowed, "/agents only supports POST, GET, PATCH and DELETE")
 	}
 
+}
+
+func deregAgent(w http.ResponseWriter, r *http.Request) {
+	if !checkAdminAuth(r.Header) {
+		writeError(w, http.StatusForbidden, "Authorization failure")
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "Pass 'id' in query string")
+		return
+	}
+
+	removeAgentQueues(id)
+	if err := db.RemAgent(id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
+func removeAgentQueues(id string) {
+	taskMetaLock.Lock()
+	for _, v := range taskResults[id] {
+		close(v)
+	}
+	delete(taskResults, id)
+
+	if _, prs := tasks[id]; prs {
+		close(tasks[id])
+	}
+	delete(tasks, id)
+	taskMetaLock.Unlock()
+
+	onlineAgentsLock.Lock()
+	delete(onlineAgents, id)
+	onlineAgentsLock.Unlock()
+}
+
+func agentSelfreg(w http.ResponseWriter, r *http.Request) {
+	if !agentsSelfregEnabled {
+		writeError(w, http.StatusMethodNotAllowed, "Agents self-registration is disabled")
+		return
+	}
+
+	name := r.URL.Query().Get("name")
+	hwid := r.URL.Query().Get("hwid")
+	if name == "" || hwid == "" {
+		writeError(w, http.StatusBadRequest, "Pass 'name' and 'hwid' in query string")
+		return
+	}
+
+	if err := db.AddAgent(name, hwid); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+}
+
+func agentListHandler(w http.ResponseWriter, r *http.Request) {
+	if !checkAdminAuth(r.Header) {
+		writeError(w, http.StatusForbidden, "Authorization failure")
+		return
+	}
+
+	agents, err := db.ListAgents()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// We want to include all known agents, not just seen active since server startup.
+	onlineAgentsL := make(map[string]bool)
+	for _, agent := range agents {
+		onlineAgentsL[agent] = onlineAgents[agent]
+	}
+
+	writeJson(w, map[string]interface{}{"error": false, "agents": agents, "online": onlineAgentsL})
+}
+
+func renameAgentHandler(w http.ResponseWriter, r *http.Request) {
+	if !checkAdminAuth(r.Header) {
+		writeError(w, http.StatusForbidden, "Authorization failure")
+		return
+	}
+
+	oldId := r.URL.Query().Get("id")
+	newId := r.URL.Query().Get("newId")
+	if oldId == "" || newId == "" {
+		writeError(w, http.StatusBadRequest, "Pass 'id' and 'oldId' in query string.")
+		return
+	}
+
+	if !db.AgentExists(oldId) {
+		writeError(w, http.StatusNotFound, "Agent doesn't exists")
+		return
+	}
+
+	if err := db.RenameAgent(oldId, newId); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	taskMetaLock.Lock()
+	taskResults[newId] = taskResults[oldId]
+	delete(taskResults, oldId)
+	tasks[newId] = tasks[oldId]
+	delete(tasks, oldId)
+	taskMetaLock.Unlock()
+
+	onlineAgentsLock.Lock()
+	onlineAgents[newId] = onlineAgents[oldId]
+	delete(onlineAgents, oldId)
+	onlineAgentsLock.Unlock()
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {

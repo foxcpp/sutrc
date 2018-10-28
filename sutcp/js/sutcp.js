@@ -60,8 +60,11 @@ function addAgentToDOM(group, name, online) {
                             <figure data-id="' + name + '" class="twoheader agent-entry ' + statusClass+ '">\
                                 <div class="twoheader-left" datadata-target="' + name + '">\
                                     <span class="agent-name">' + title + '</span>\
-                                    <button type="button" data-role="rename-agent" data-target="' + name + '" class="btn btn-transparent btn-dim agent-btn">\
-                                        <span class="fas fa-sm fa-pencil-alt"></span>\
+                                    <button type="button" data-role="delete-agent" data-target="' + name + '" class="btn btn-transparent btn-dim small-btn agent-btn">\
+                                        <span aria-label="Delete agent" class="fas fa-times"></span>\
+                                    </button>\
+                                    <button style="margin-left: 20px" type="button" data-role="rename-agent" data-target="' + name + '" class="btn btn-transparent btn-dim small-btn agent-btn">\
+                                        <span aria-label="Rename agent" class="fas fa-sm fa-pencil-alt"></span>\
                                     </button>\
                                 </div>\
                                 <div class="twoheader-right">\

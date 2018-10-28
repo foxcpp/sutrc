@@ -44,6 +44,11 @@ tasks (listening for them now).
 }
 ```
 
+#### `DELETE /agents?id=AGENTID`
+
+Deregister agent `AGENTID` from server. If agent is listening for tasks - it
+will immediately get 403 error.
+
 #### `PATCH /agents?id=OLDID&newId=NEWID`
 
 Rename change name of agent with name OLDID to NEWID.
