@@ -34,8 +34,8 @@ import (
 	"syscall"
 
 	"github.com/foxcpp/sutrc/agent"
-	"github.com/kbinani/screenshot"
 	"github.com/inconshreveable/go-update"
+	"github.com/kbinani/screenshot"
 )
 
 func deleteFileTask(client *agent.Client, taskID int, body map[string]interface{}) {
@@ -250,7 +250,7 @@ func executeCmdTask(client *agent.Client, taskID int, body map[string]interface{
 }
 
 func selfUpdateTask(client *agent.Client, taskID int, _ map[string]interface{}) {
-	inp, err := client.Download(baseURL + "/sutupdate.exe")
+	inp, err := client.Download(baseURL + "/sutagent.exe")
 	if err != nil {
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to fetch latest agent version: " + err.Error()})
 		return

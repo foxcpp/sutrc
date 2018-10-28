@@ -24,16 +24,15 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/foxcpp/sutrc/agent"
+	"golang.org/x/sys/windows"
 )
 
 func usage(errmsg string) {
@@ -55,15 +54,6 @@ var baseURL string
 var apiURL = baseURL + "/api"
 
 func main() {
-	log.SetFlags(log.Ldate | log.Ltime | log.LUTC)
-	logFile, err := os.OpenFile("sutagent.log",
-		os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0660)
-	if err != nil {
-		log.Fatalln("Unable to configure logging:", err)
-	}
-	multiWriter := io.MultiWriter(os.Stdout, logFile)
-	log.SetOutput(multiWriter)
-
 	if len(os.Args) >= 2 {
 		cmd := strings.ToLower(os.Args[1])
 		switch cmd {
@@ -155,13 +145,25 @@ func main() {
 			screenshotTask(&client, id, body)
 		case "update":
 			selfUpdateTask(&client, id, body)
-			logFile.Close()
-			out, err := exec.Command(os.Args[0]).Output()
+
+			// Golang have a very weird logic somewhere that prevents us from
+			// leaving a running children process and terminate.
+			// So basicallly we have to "hide" children from golang code by
+			// calling CreateProcess directly.
+
+			cmd, err := windows.UTF16PtrFromString(`C:\Windows\sutagent.exe`)
 			if err != nil {
-				fmt.Println(string(out))
 				panic(err)
 			}
-			return
+			si := windows.StartupInfo{}        // It's important to pass these structures
+			pi := windows.ProcessInformation{} // otherwise it will fail.
+			err = windows.CreateProcess(cmd, cmd, nil, nil, false, 0, nil, nil, &si, &pi)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Println("Exiting")
+				os.Exit(0)
+			}
 		}
 	}
 
