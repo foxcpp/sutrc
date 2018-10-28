@@ -28,10 +28,11 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/foxcpp/sutrc/agent"
-	"golang.org/x/sys/windows/svc"
+	"golang.org/x/sys/windows"
 )
 
 func usage(errmsg string) {
@@ -47,78 +48,123 @@ func usage(errmsg string) {
 const svcname = "sutagent"
 const dispName = "State University of Telecommunications Remote Control Service Agent"
 const description = "Implements remote control functionality and performs background longpolling, " +
-	"allowing remote procedure execution as needed by sutserver according to internal protocol."
+	"."
 
-func installAgent(id string) error {
-	// Generating a fingerprint for this machine
-	// ID parameter is passed with install command
-	mid, err := machineid.ProtectedID(id)
-	if err != nil {
-		return fmt.Errorf("failed generating machine ID: %s", err)
-	}
-	fmt.Println("HWID:", mid)
-	fmt.Println("Saving to C:\\Windows\\sutpc.key")
-	err = ioutil.WriteFile("C:\\Windows\\sutpc.key", []byte(mid), 0640)
-	if err != nil {
-		return fmt.Errorf("failed to save a key for this PC: %s", err)
-	}
-	fmt.Println("Trying to register client")
-	client := agent.NewClient(apiURL)
-	if err := client.RegisterAgent(id, mid); err != nil {
-		return fmt.Errorf("failed to register on central server: %s", err)
-	}
-	fmt.Println("Success. Now installing the service itself")
-	path, err := exePath()
-	if err != nil {
-		return fmt.Errorf("failed to get program path: %s", err)
-	}
-	return agent.InstallService(path, svcname, dispName, description, 2)
-}
+var baseURL string
+var apiURL = baseURL + "/api"
 
 func main() {
-	// If we are running as an interactive session, we need to launch the service by itself.
-	isInteractive, err := svc.IsAnInteractiveSession()
+	if len(os.Args) >= 2 {
+		cmd := strings.ToLower(os.Args[1])
+		switch cmd {
+		case "debug":
+			break
+		case "install":
+			fmt.Println("Installing service")
+			hostname, err := os.Hostname()
+			if err != nil {
+				log.Fatalf("failed to get hostname: %v", err)
+			}
+			fmt.Println("Hostname:", hostname)
+			// Generating a fingerprint for this machine
+			// ID parameter is passed with install command
+			mid, err := machineid.ProtectedID(hostname)
+			if err != nil {
+				log.Fatalf("failed generating machine ID: %s", err)
+			}
+			fmt.Println("HWID:", mid)
+			err = ioutil.WriteFile("C:\\Windows\\sutpc.key", []byte(mid), 0640)
+			if err != nil {
+				log.Fatalf("failed to save a key for this PC: %s", err)
+			}
+			fmt.Println("Trying to register client")
+			client := agent.NewClient(apiURL)
+			if err := client.RegisterAgent(hostname, mid); err != nil {
+				log.Fatalf("failed to register on central server: %s", err)
+			}
+			return
+		default:
+			usage(fmt.Sprintf("invalid command %s", cmd))
+		}
+	}
+
+	hwid, err := ioutil.ReadFile("C:\\Windows\\sutpc.key")
 	if err != nil {
-		log.Fatalf("failed to determine if we are running in an interactive session: %v", err)
+		log.Fatalln("Failed to read authorization key:", err)
 	}
-	if !isInteractive {
-		// Assume we are running as a service and start polling server
-		RunService(svcname, false)
-		return
-	}
+	log.Println("Starting longpolling")
 
-	if len(os.Args) < 2 {
-		usage("no command specified")
+	client := agent.NewClient(apiURL)
+	client.SupportedTaskTypes = []string{
+		"execute_cmd",
+		"proclist",
+		"downloadfile",
+		"uploadfile",
+		"dircontents",
+		"deletefile",
+		"movefile",
+		"screenshot",
+		"update",
 	}
-
-	cmd := strings.ToLower(os.Args[1])
-	switch cmd {
-	case "debug":
-		RunService(svcname, true)
-		return
-	case "install":
-		fmt.Println("Installing service")
-		hostname, err := os.Hostname()
+	client.UseAccount(string(hwid))
+	for {
+		id, ttype, body, err := client.PollTasks()
 		if err != nil {
-			log.Fatalf("failed to get hostname: %v", err)
+			log.Println("Error during task polling:", err)
+			if err.Error() == "access denied" {
+				log.Println("Exiting!")
+				os.Exit(1)
+				return
+			}
+			if id != -1 {
+				go client.SendTaskResult(id, map[string]interface{}{"error": true, "msg": err.Error()})
+			}
+			time.Sleep(30 * time.Second)
+			continue
 		}
-		fmt.Println("Hostname:", hostname)
-		err = installAgent(hostname)
-		if err == nil {
-			fmt.Println("Done.")
-		} else {
-			panic(err)
+		if id == -1 {
+			continue
 		}
-	case "remove":
-		err = agent.RemoveService(svcname)
-	case "start":
-		err = agent.StartService(svcname)
-	case "stop":
-		err = agent.ControlService(svcname, svc.Stop, svc.Stopped)
-	default:
-		usage(fmt.Sprintf("invalid command %s", cmd))
+		log.Println("Received task", body)
+		switch ttype {
+		case "execute_cmd":
+			executeCmdTask(&client, id, body)
+		case "proclist":
+			proclistTask(&client, id, body)
+		case "downloadfile":
+			downloadFileTask(&client, id, body)
+		case "uploadfile":
+			uploadFileTask(&client, id, body)
+		case "dircontents":
+			dirContentsTask(&client, id, body)
+		case "deletefile":
+			deleteFileTask(&client, id, body)
+		case "movefile":
+			moveFileTask(&client, id, body)
+		case "screenshot":
+			screenshotTask(&client, id, body)
+		case "update":
+			selfUpdateTask(&client, id, body)
+
+			// Golang have a very weird logic somewhere that prevents us from
+			// leaving a running children process and terminate.
+			// So basicallly we have to "hide" children from golang code by
+			// calling CreateProcess directly.
+
+			cmd, err := windows.UTF16PtrFromString(`C:\Windows\sutagent.exe`)
+			if err != nil {
+				panic(err)
+			}
+			si := windows.StartupInfo{}        // It's important to pass these structures
+			pi := windows.ProcessInformation{} // otherwise it will fail.
+			err = windows.CreateProcess(cmd, cmd, nil, nil, false, 0, nil, nil, &si, &pi)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Println("Exiting")
+				os.Exit(0)
+			}
+		}
 	}
-	if err != nil {
-		log.Fatalf("failed to %s %s: %v", cmd, svcname, err)
-	}
+
 }

@@ -23,27 +23,20 @@
 package main
 
 import (
-	"fmt"
-	"golang.org/x/text/encoding/charmap"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/text/encoding/charmap"
 )
 
 var cmdEncoding = charmap.CodePage866
 
-/*
-import (
-	"syscall"
-	"unsafe"
-)
-
 var (
-	user32 				= syscall.MustLoadDLL("user32.dll")
-	procEnumWindows 	= user32.MustFindProc("EnumWindows")
-	procGetWindowTextW	= user32.MustFindProc("GetWindowTextW")
-	procGetWindowThreadProcessId = 	  user32.MustFindProc("GetWindowThreadProcessId")
+	user32                       = syscall.MustLoadDLL("user32.dll")
+	procEnumWindows              = user32.MustFindProc("EnumWindows")
+	procGetWindowTextW           = user32.MustFindProc("GetWindowTextW")
+	procGetWindowThreadProcessId = user32.MustFindProc("GetWindowThreadProcessId")
 )
-
 
 func EnumWindows(enumFunc uintptr, lparam uintptr) (err error) {
 	r1, _, e1 := syscall.Syscall(procEnumWindows.Addr(), 2, uintptr(enumFunc), uintptr(lparam), 0)
@@ -79,7 +72,7 @@ func GetPID(hwnd syscall.Handle, pid *uint32) error {
 }
 
 type Window struct {
-	PID uint32 `json:"id"`
+	PID  uint32 `json:"id"`
 	Name string `json:"name"`
 }
 
@@ -105,8 +98,8 @@ func ListWindows() []Window {
 
 	return windows
 }
-*/
 
+/*
 // Windows API functions
 var (
 	modKernel32                  = syscall.NewLazyDLL("kernel32.dll")
@@ -248,3 +241,4 @@ func processes() ([]Process, error) {
 
 	return results, nil
 }
+*/
