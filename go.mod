@@ -3,7 +3,7 @@ module github.com/foxcpp/sutrc
 require (
 	github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802 // indirect
 	github.com/denisbrodbeck/machineid v1.0.0
-	github.com/foxcpp/filedrop v1.0.0-rc2.0.20181023223557-dbce1bad9432
+	github.com/foxcpp/filedrop v1.0.0
 	github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90 // indirect
 	github.com/go-sql-driver/mysql v1.4.0
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf

@@ -8,6 +8,8 @@ github.com/foxcpp/filedrop v1.0.0-rc2.0.20181023220858-14ca9c76bbe3 h1:qi2rLEfx2
 github.com/foxcpp/filedrop v1.0.0-rc2.0.20181023220858-14ca9c76bbe3/go.mod h1:l8Qe0kS1JznYC3ZN/hS55EBTgRCxHnw+9v0G6fzAuHQ=
 github.com/foxcpp/filedrop v1.0.0-rc2.0.20181023223557-dbce1bad9432 h1:60zwQZeUD57l9uN7+5vTulEtQlZZplaBN7VxNVmpsoI=
 github.com/foxcpp/filedrop v1.0.0-rc2.0.20181023223557-dbce1bad9432/go.mod h1:l8Qe0kS1JznYC3ZN/hS55EBTgRCxHnw+9v0G6fzAuHQ=
+github.com/foxcpp/filedrop v1.0.0 h1:Uuxr7zhtVi8PYJFT+sdhdQn4iXk6Df8Zm6RyBgzYV0Y=
+github.com/foxcpp/filedrop v1.0.0/go.mod h1:UXMRYquIpoR2FAba9B45JrhW10a17d7XwYvSiEA/fNs=
 github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90 h1:QagTG5rauLt6pVVEhnVSrlIX4ifhVIZOwmw6x6D8TUw=
 github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90/go.mod h1:uF6rMu/1nvu+5DpiRLwusA6xB8zlkNoGzKn8lmYONUo=
 github.com/go-sql-driver/mysql v1.4.0 h1:7LxgVwFb2hIQtMm87NdgAVfXjnt4OePseqT1tKx+opk=
