@@ -46,12 +46,12 @@ func openDBFromConf(configFile string) (*DB, error) {
 func addAgentSubcmd() {
 	if len(os.Args) != 5 {
 		fmt.Println("Usage:", os.Args[0], "addagent CONFIGFILE NAME HWID")
-		return
+		os.Exit(2)
 	}
 	db, err := openDBFromConf(os.Args[2])
 	if err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(1)
 	}
 	defer db.Close()
 	name := os.Args[3]
@@ -59,6 +59,7 @@ func addAgentSubcmd() {
 
 	if err := db.AddAgent(name, hwid); err != nil {
 		fmt.Println("Error:", err)
+		os.Exit(1)
 	} else {
 		fmt.Println("OK!")
 	}
@@ -67,12 +68,12 @@ func addAgentSubcmd() {
 func remAgentSubcmd() {
 	if len(os.Args) != 4 {
 		fmt.Println("Usage:", os.Args[0], "remagent CONFIGFILE NAME")
-		return
+		os.Exit(2)
 	}
 	db, err := openDBFromConf(os.Args[2])
 	if err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(2)
 	}
 	defer db.Close()
 	name := os.Args[3]
@@ -87,17 +88,19 @@ func remAgentSubcmd() {
 func addAccountSubcmd() {
 	if len(os.Args) != 4 {
 		fmt.Println("Usage:", os.Args[0], "addaccount DRIVER=DSN TOKEN")
+		os.Exit(2)
 	}
 	db, err := openDBFromConf(os.Args[2])
 	if err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(1)
 	}
 	defer db.Close()
 	token := os.Args[3]
 
 	if err := db.AddAccount(token); err != nil {
 		fmt.Println("Error:", err)
+		os.Exit(1)
 	} else {
 		fmt.Println("OK!")
 	}
@@ -106,18 +109,19 @@ func addAccountSubcmd() {
 func remAccountSubcmd() {
 	if len(os.Args) != 4 {
 		fmt.Println("Usage:", os.Args[0], "remaccount CONFIGFILE TOKEN")
-		return
+		os.Exit(2)
 	}
 	db, err := openDBFromConf(os.Args[2])
 	if err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(1)
 	}
 	defer db.Close()
 	token := os.Args[3]
 
 	if err := db.RemAccount(token); err != nil {
 		fmt.Println("Error:", err)
+		os.Exit(1)
 	} else {
 		fmt.Println("OK!")
 	}
