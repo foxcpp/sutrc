@@ -457,10 +457,16 @@
                     for (var i = 0; i < contents.length; i++) {
                         addFSEntryToDOM(contents[i])
                     }
+
                     registerFSBtnCallback()
                 }, function (msg) {
                     $(".fs-entry").remove()
-                    showAlert("fs-load-err", "#fs-browser-body", "${DIRCONTENTS_LOAD_FAIL} " + msg)
+                    showAlert("fs-alert", "#fs-browser-body", "${DIRCONTENTS_LOAD_FAIL} " + msg)
+
+                    if (haveFSParent(curDir)) {
+                        addUpperDirEntry()
+                    }
+                    registerFSBtnCallback()
                 })
             }
             
