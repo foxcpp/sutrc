@@ -43,6 +43,11 @@
                 margin-top: 5px;
                 margin-bottom: 5px;
                 padding-left: 1rem;
+
+                /* hide ending of very-long names without wrapping or scrolls */
+                white-space: nowrap;
+                text-overflow: ellipsis;
+                overflow: hidden;
             }
             .fs-entry:nth-of-type(odd) {
                 background-color: #fff;
