@@ -106,7 +106,7 @@ func dirContentsTask(client *agent.Client, taskID int, body map[string]interface
 		return
 	}
 
-	var res []map[string]interface{}
+	res := []map[string]interface{}{}
 	for _, entry := range dirInfo {
 		res = append(res, map[string]interface{}{
 			"name":     entry.Name(),
