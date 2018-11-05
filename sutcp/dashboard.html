@@ -281,6 +281,10 @@
             var renameXHR
             var downloadXHR
 
+            if (Cookies.get(cookieName) == undefined) {
+                window.location = "login.html";
+            }
+
             function escapeHTML(text) {
                 return $('<div/>').text(text).html()
             }
@@ -400,14 +404,18 @@
                 })
             })
 
-            $("#logout-btn").click(function(event) {
+            function logoutBtn() {
                 logout(function () {
                     window.location = "login.html"
                 }, function (msg) {
                     // OOPS. I hope this will never happen because 
                     // I don't know how to handle it.
+                    window.location = "login.html"
                 })
-            })
+            }
+            sessionClosedCallback = logoutBtn;
+
+            $("#logout-btn").click(logoutBtn)
 
             // Update send task form when user changes task type.
             $("#send-task-type-select").change(updateSendTaskForm)

@@ -19,6 +19,9 @@ var apiPrefix = "api";
 // Name of cookie where session token will be saved.
 var cookieName = "sutcp_session"
 
+// Called when 403 is received.
+var sessionClosedCallback
+
 // Initialize session using certain pass-code.
 //
 // On successful authorization successCallback will be called. Session
@@ -53,8 +56,10 @@ function logout(successCallback, failureCallback) {
             Authorization: Cookies.get(cookieName)
         }
     }).done(function (data) {
+        Cookies.remove(cookieName)
         successCallback()
     }).fail(function (resp) {
+        Cookies.remove(cookieName)
         failureCallback(getErrorMessage(resp))
     })
 }
@@ -271,6 +276,9 @@ function setSelfregStatus(val, successCallback, failureCallback) {
 // If response body contains JSON - 'msg' field will be used. Otherwise textual
 // description of HTTP status code is returned.
 function getErrorMessage(resp) {
+    if (resp.status == 403) {
+        sessionClosedCallback()
+    }
     if (resp.responseJSON != undefined) {
         return resp.responseJSON.msg
     } else {
