@@ -602,10 +602,10 @@
                 renameXHR = renameAgent(target, $("#new-agent-name").val(), function() {
                     loadAgentsList()
                     $("#rename-modal").modal("hide")
-                    $("#rename-submit").text("Rename")
+                    $("#rename-submit").text("${RENAME_BTN}")
                 }, function(msg) {
                     showAlert("rename-agent-error", "#rename-agent-form", "${RENAME_AGENT_FAIL} " + msg)
-                    $("#rename-submit").text("Rename")
+                    $("#rename-submit").text("${RENAME_BTN}")
                 })
             })
             $("#rename-modal").on("hidden.bs.modal", function(event){
