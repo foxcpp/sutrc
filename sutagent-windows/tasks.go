@@ -140,6 +140,7 @@ func downloadFileTask(client *agent.Client, taskID int, body map[string]interfac
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": err.Error()})
 		return
 	}
+	defer file.Close()
 
 	_, err = io.Copy(file, remoteFile)
 	if err != nil {
