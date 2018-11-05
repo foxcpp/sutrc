@@ -190,7 +190,7 @@ function directoryContents(target, fullpath, successCallback, failureCallback) {
     "use strict"
     var xhr = submitTask(target, {type: "dircontents", dir: fullpath}, function (result) {
         if (result.results[0].error) {
-            failureCallback(result.result[0].msg)
+            failureCallback(result.results[0].msg)
             return
         }
 
