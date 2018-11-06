@@ -2,21 +2,9 @@
 
 ### Installation
 
-`sutagent-windows install` to install sutagent as a Windows service.
+`sutagent-windows install` to create all necessary files.
 
-#### Other subcommands
-
-##### `sutagent-windows remove`
-Uninstall service.
-
-##### `sutagent-windows debug`
-Launch agent without installation.
-
-##### `sutagent-windows start`
-Start installed service.
-
-##### `sutagent-windows stop`
-Stop installed service.
+Then just run `sutagent-windows` how you like to start agent.
 
 ### Configuration
 
@@ -28,8 +16,6 @@ Latter can be set during build by using `./build.sh` script.
 **Note:** baseURL should specify without `api` suffix.
 I.e. it should contain `https://localhost/sutrc` and not `https://localhost/sutrc/api`.
 
-
 ### Self-Update
 
-Compiled updater binary should be located at `BASEURL/sutupdate.exe` and latest version of
-agent's binary should be located at `BASEURL/sutagent.exe`.
+sutagent can update itself on `"selfupdate"` task by downloading latest version from `BASEURL/sutagent.exe`.
