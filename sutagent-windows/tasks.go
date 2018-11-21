@@ -23,8 +23,6 @@
 package main
 
 import (
-	"github.com/foxcpp/sutrc/agent"
-	"github.com/kbinani/screenshot"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -34,6 +32,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
+
+	"github.com/foxcpp/sutrc/agent"
+	"github.com/inconshreveable/go-update"
+	"github.com/kbinani/screenshot"
 )
 
 func deleteFileTask(client *agent.Client, taskID int, body map[string]interface{}) {
@@ -104,7 +106,7 @@ func dirContentsTask(client *agent.Client, taskID int, body map[string]interface
 		return
 	}
 
-	var res []map[string]interface{}
+	res := []map[string]interface{}{}
 	for _, entry := range dirInfo {
 		res = append(res, map[string]interface{}{
 			"name":     entry.Name(),
@@ -138,6 +140,7 @@ func downloadFileTask(client *agent.Client, taskID int, body map[string]interfac
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": err.Error()})
 		return
 	}
+	defer file.Close()
 
 	_, err = io.Copy(file, remoteFile)
 	if err != nil {
@@ -152,7 +155,7 @@ func screenshotTask(client *agent.Client, taskID int, _ map[string]interface{}) 
 	if err != nil {
 		client.SendTaskResult(taskID, map[string]interface{}{
 			"error": true,
-			"msg": err.Error(),
+			"msg":   err.Error(),
 		})
 		return
 	}
@@ -170,7 +173,7 @@ func screenshotTask(client *agent.Client, taskID int, _ map[string]interface{}) 
 	if err != nil {
 		client.SendTaskResult(taskID, map[string]interface{}{
 			"error": true,
-			"msg": err.Error(),
+			"msg":   err.Error(),
 		})
 		return
 	}
@@ -180,6 +183,7 @@ func screenshotTask(client *agent.Client, taskID int, _ map[string]interface{}) 
 	})
 }
 
+/*
 func proclistTask(client *agent.Client, taskID int, _ map[string]interface{}) {
 	procs, err := Processes()
 	if err != nil {
@@ -198,6 +202,15 @@ func proclistTask(client *agent.Client, taskID int, _ map[string]interface{}) {
 	}
 	responseMap := map[string]interface{}{
 		"procs": windowsArray,
+	}
+	client.SendTaskResult(taskID, responseMap)
+}
+*/
+
+func proclistTask(client *agent.Client, taskID int, _ map[string]interface{}) {
+	windows := ListWindows()
+	responseMap := map[string]interface{}{
+		"procs": windows,
 	}
 	client.SendTaskResult(taskID, responseMap)
 }
@@ -238,27 +251,17 @@ func executeCmdTask(client *agent.Client, taskID int, body map[string]interface{
 }
 
 func selfUpdateTask(client *agent.Client, taskID int, _ map[string]interface{}) {
-	const executable = "C:\\Windows\\sutupdate.exe"
-	out, err := os.Create(executable)
-	if err != nil  {
-		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Cannot access local file: " + err.Error()})
-		return
-	}
-	defer out.Close()
-
-	inp, err := client.Download(baseURL + "/sutupdate.exe")
+	inp, err := client.Download(baseURL + "/sutagent.exe")
 	if err != nil {
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to fetch latest agent version: " + err.Error()})
 		return
 	}
-
-	_, err = io.Copy(out, inp)
+	err = update.Apply(inp, update.Options{})
 	if err != nil {
-		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to save the file: " + err.Error()})
+		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "Unable to fetch latest agent version: " + err.Error()})
 		return
 	}
+	inp.Close()
 
-	exec.Command(executable, "install").Run()
 	client.SendTaskResult(taskID, map[string]interface{}{"error": false, "msg": "Update process was initiated"})
-	agent.StartService("sutupdate")
 }

@@ -24,13 +24,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/denisbrodbeck/machineid"
-	"github.com/foxcpp/sutrc/agent"
-	"golang.org/x/sys/windows/svc"
-	"io/ioutil"
 	"log"
 	"os"
-	"strings"
+	"time"
+
+	"github.com/denisbrodbeck/machineid"
+	"github.com/foxcpp/sutrc/agent"
+	"golang.org/x/sys/windows"
 )
 
 func usage(errmsg string) {
@@ -46,70 +46,119 @@ func usage(errmsg string) {
 const svcname = "sutagent"
 const dispName = "State University of Telecommunications Remote Control Service Agent"
 const description = "Implements remote control functionality and performs background longpolling, " +
-	"allowing remote procedure execution as needed by sutserver according to internal protocol."
+	"."
 
-func installAgent(id string) error {
-	// Generating a fingerprint for this machine
-	// ID parameter is passed with install command
-	mid, err := machineid.ProtectedID(id)
-	if err != nil {
-		return fmt.Errorf("failed generating machine ID: %s", err)
-	}
-	err = ioutil.WriteFile("C:\\Windows\\sutpc.key", []byte(mid), 0640)
-	if err != nil {
-		return err
-	}
-
-	client := agent.NewClient(apiURL)
-	if err := client.RegisterAgent(id, mid); err != nil {
-		log.Fatalln("Failed to register on central server:", err)
-	}
-
-	path, err := exePath()
-	if err != nil {
-		log.Fatalln("Failed to get program path:", err)
-	}
-
-	return agent.InstallService(path, svcname, dispName, description, 2)
-}
+var baseURL string
+var apiURL = baseURL + "/api"
 
 func main() {
-	// If we are running as an interactive session, we need to launch the service by itself.
-	isInteractive, err := svc.IsAnInteractiveSession()
+	client := agent.NewClient(apiURL)
+
+	hostname, err := os.Hostname()
 	if err != nil {
-		log.Fatalf("failed to determine if we are running in an interactive session: %v", err)
+		log.Fatalln("Gailed to get hostname:", err)
 	}
-	if !isInteractive {
-		// Assume we are running as a service and start polling server
-		RunService(svcname, false)
-		return
+	fmt.Println("Hostname:", hostname)
+
+	// Generating a fingerprint for this machine
+	// In the use case of sutrc, we must handle somehow possible reinstallation
+	// of systems using pre-made special image that do not change the real HWID in Windows.
+	// Therefore, somehow we must change the real key we use for identifying machine while
+	// NOT messing with HWID (just because that's harder than you think in real conditions).
+	// And it is guaranteed that university computer will have a unique hostname set after
+	// first launch. This function uses hostname and HWID to get something unique from both
+	// sides and uses it as a machine fingerprint.
+	hwid, err := machineid.ProtectedID(hostname)
+
+	// The sutrc protocol enforces agent registration. This creates some obvious stage of
+	// "agent installation", which will probably never be executed in some cases (ops error).
+	// At the same time, there is nothing more about this process except agent registration.
+	// While this is true, it is also true that current server behaviour returns 200 OK if HWID
+	// was already registered, even if self-registration is disabled. Also, there is no reason
+	// to keep agent running if self-registration is actually disabled and agent is (was) not
+	// registered.
+	//
+	// Looking at HWID issue from previous comment block, it is obvious that after the first
+	// launch there will be duplicated hostname and hwid in a sutrc network. This is not even
+	// considered a bug. Immediately after installation, the hostname will be changed and after
+	// reboot agent will be functioning properly, with new, unique HWID passed to this function.
+	// HWID must not be duplicated in real life. This is bad, very bad and not even sutrc's problem.
+	if err := client.RegisterAgent(hostname, hwid); err != nil {
+		log.Fatalf("failed to register on central server: %s", err)
 	}
 
-	if len(os.Args) < 2 {
-		usage("no command specified")
-	}
+	log.Println("Starting longpolling")
 
-	cmd := strings.ToLower(os.Args[1])
-	switch cmd {
-	case "debug":
-		RunService(svcname, true)
-		return
-	case "install":
-		hostname, err := os.Hostname()
+	client.SupportedTaskTypes = []string{
+		"execute_cmd",
+		"proclist",
+		"downloadfile",
+		"uploadfile",
+		"dircontents",
+		"deletefile",
+		"movefile",
+		"screenshot",
+		"update",
+	}
+	client.UseAccount(string(hwid))
+	for {
+		id, ttype, body, err := client.PollTasks()
 		if err != nil {
-			log.Fatalf("failed to generate HWID: %v", err)
+			log.Println("Error during task polling:", err)
+			if err.Error() == "access denied" {
+				log.Println("Exiting!")
+				os.Exit(1)
+				return
+			}
+			if id != -1 {
+				go client.SendTaskResult(id, map[string]interface{}{"error": true, "msg": err.Error()})
+			}
+			time.Sleep(30 * time.Second)
+			continue
 		}
-		err = installAgent(hostname)
-	case "remove":
-		err = agent.RemoveService(svcname)
-	case "start":
-		err = agent.StartService(svcname)
-	case "stop":
-		err = agent.ControlService(svcname, svc.Stop, svc.Stopped)
-	default:
-		usage(fmt.Sprintf("invalid command %s", cmd))
+		if id == -1 {
+			continue
+		}
+		log.Println("Received task", body)
+		switch ttype {
+		case "execute_cmd":
+			executeCmdTask(&client, id, body)
+		case "proclist":
+			proclistTask(&client, id, body)
+		case "downloadfile":
+			downloadFileTask(&client, id, body)
+		case "uploadfile":
+			uploadFileTask(&client, id, body)
+		case "dircontents":
+			dirContentsTask(&client, id, body)
+		case "deletefile":
+			deleteFileTask(&client, id, body)
+		case "movefile":
+			moveFileTask(&client, id, body)
+		case "screenshot":
+			screenshotTask(&client, id, body)
+		case "update":
+			selfUpdateTask(&client, id, body)
+
+			// Golang have a very weird logic somewhere that prevents us from
+			// leaving a running children process and terminate.
+			// So basicallly we have to "hide" children from golang code by
+			// calling CreateProcess directly.
+
+			cmd, err := windows.UTF16PtrFromString(`C:\Windows\sutagent.exe`)
+			if err != nil {
+				panic(err)
+			}
+			si := windows.StartupInfo{}        // It's important to pass these structures
+			pi := windows.ProcessInformation{} // otherwise it will fail.
+			err = windows.CreateProcess(cmd, cmd, nil, nil, false, 0, nil, nil, &si, &pi)
+			if err != nil {
+				log.Println(err)
+			} else {
+				log.Println("Exiting")
+				os.Exit(0)
+			}
+		}
 	}
-	if err != nil {
-		log.Fatalf("failed to %s %s: %v", cmd, svcname, err)
-	}
+
 }

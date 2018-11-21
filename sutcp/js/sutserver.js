@@ -19,6 +19,9 @@ var apiPrefix = "api";
 // Name of cookie where session token will be saved.
 var cookieName = "sutcp_session"
 
+// Called when 403 is received.
+var sessionClosedCallback
+
 // Initialize session using certain pass-code.
 //
 // On successful authorization successCallback will be called. Session
@@ -53,8 +56,10 @@ function logout(successCallback, failureCallback) {
             Authorization: Cookies.get(cookieName)
         }
     }).done(function (data) {
+        Cookies.remove(cookieName)
         successCallback()
     }).fail(function (resp) {
+        Cookies.remove(cookieName)
         failureCallback(getErrorMessage(resp))
     })
 }
@@ -83,6 +88,24 @@ function renameAgent(from, to, successCallback, failureCallback) {
     $.ajax({
         method: "PATCH",
         url: apiPrefix + "/agents?" + jQuery.param({id: from, newId: to}),
+        dataType: 'text',
+        headers: {
+            Authorization: Cookies.get(cookieName)
+        }
+    }).done(function () {
+        successCallback()
+    }).fail(function (resp) {
+        failureCallback(getErrorMessage(resp))
+    })
+}
+
+// De-register agent from server.
+function deleteAgent(id, successCallback, failureCallback) {
+    "use strict"
+    $.ajax({
+        method: "DELETE",
+        url: apiPrefix + "/agents?" + jQuery.param({id: id}),
+        dataType: 'text',
         headers: {
             Authorization: Cookies.get(cookieName)
         }
@@ -166,6 +189,11 @@ function moveFile(target, frompath, topath, successCallback, failureCallback) {
 function directoryContents(target, fullpath, successCallback, failureCallback) {
     "use strict"
     var xhr = submitTask(target, {type: "dircontents", dir: fullpath}, function (result) {
+        if (result.results[0].error) {
+            failureCallback(result.results[0].msg)
+            return
+        }
+
         successCallback(result.results[0].contents)
     }, function (msg) {
         failureCallback(msg)
@@ -248,6 +276,9 @@ function setSelfregStatus(val, successCallback, failureCallback) {
 // If response body contains JSON - 'msg' field will be used. Otherwise textual
 // description of HTTP status code is returned.
 function getErrorMessage(resp) {
+    if (resp.status == 403) {
+        sessionClosedCallback()
+    }
     if (resp.responseJSON != undefined) {
         return resp.responseJSON.msg
     } else {

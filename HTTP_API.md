@@ -44,6 +44,11 @@ tasks (listening for them now).
 }
 ```
 
+#### `DELETE /agents?id=AGENTID`
+
+Deregister agent `AGENTID` from server. If agent is listening for tasks - it
+will immediately get 403 error.
+
 #### `PATCH /agents?id=OLDID&newId=NEWID`
 
 Rename change name of agent with name OLDID to NEWID.
@@ -87,16 +92,15 @@ minute instead of 26 seconds.
 Agents self-registration mode allows agents to automatically create
 accounts for themselves, making mass deployment a lot easier.
 
-##### `POST /agents?token=PASS`
+##### `POST /agents?name=NAME?hwid=HWID`
 
-Called by client to create new agent account.
+Called by client to create account for itself.
 Works only if `GET /agents_selfreg` returns 1.
 
 You don't need to supply `Authorization` header.
 
-You can replace other's agent (or your own if you want to change password)
-accounts but can't replace admin accounts using this endpoint, in this
-case your attempt will be ignored without error.
+If agent with specified `HWID` already exists - `200 OK` will be returned even
+if self-registration is disabled (use big HWID's to prevent brute-forcing).
 
 ##### `POST /agent_selfreg?enabled=1`
 

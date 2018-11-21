@@ -254,7 +254,12 @@ func (db *DB) initStmts() error {
 		return err
 	}
 
-	db.addAgent, err = db.d.Prepare(`INSERT INTO agents VALUES (?, ?)`)
+	if db.driver != "mysql" {
+		// Same here.
+		db.addAgent, err = db.d.Prepare(`INSERT INTO agents VALUES (?, ?) ON CONFLICT DO NOTHING`)
+	} else {
+		db.addAgent, err = db.d.Prepare(`INSERT IGNORE INTO agents VALUES (?, ?)`)
+	}
 	if err != nil {
 		return err
 	}

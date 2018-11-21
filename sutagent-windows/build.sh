@@ -6,4 +6,4 @@ if [ $# -ne 1 ]; then
 fi
 
 export GOOS=windows
-go build -o sutagent.exe -ldflags "-X main.baseURL=$1"
+go build -o sutagent.exe -ldflags "-X main.baseURL=$1 -H windowsgui"

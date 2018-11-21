@@ -8,6 +8,8 @@ github.com/foxcpp/filedrop v1.0.0-rc2.0.20181023220858-14ca9c76bbe3 h1:qi2rLEfx2
 github.com/foxcpp/filedrop v1.0.0-rc2.0.20181023220858-14ca9c76bbe3/go.mod h1:l8Qe0kS1JznYC3ZN/hS55EBTgRCxHnw+9v0G6fzAuHQ=
 github.com/foxcpp/filedrop v1.0.0-rc2.0.20181023223557-dbce1bad9432 h1:60zwQZeUD57l9uN7+5vTulEtQlZZplaBN7VxNVmpsoI=
 github.com/foxcpp/filedrop v1.0.0-rc2.0.20181023223557-dbce1bad9432/go.mod h1:l8Qe0kS1JznYC3ZN/hS55EBTgRCxHnw+9v0G6fzAuHQ=
+github.com/foxcpp/filedrop v1.0.0 h1:Uuxr7zhtVi8PYJFT+sdhdQn4iXk6Df8Zm6RyBgzYV0Y=
+github.com/foxcpp/filedrop v1.0.0/go.mod h1:UXMRYquIpoR2FAba9B45JrhW10a17d7XwYvSiEA/fNs=
 github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90 h1:QagTG5rauLt6pVVEhnVSrlIX4ifhVIZOwmw6x6D8TUw=
 github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90/go.mod h1:uF6rMu/1nvu+5DpiRLwusA6xB8zlkNoGzKn8lmYONUo=
 github.com/go-sql-driver/mysql v1.4.0 h1:7LxgVwFb2hIQtMm87NdgAVfXjnt4OePseqT1tKx+opk=
@@ -15,6 +17,8 @@ github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG
 github.com/gofrs/uuid/v3 v3.1.1 h1:sqMK0jjyOJ7HV36lwG2GZ6TD2hK8RB7dJQVDakI65U4=
 github.com/gofrs/uuid/v3 v3.1.1/go.mod h1:xPwMqoocQ1L5G6pXX5BcE7N5jlzn2o19oqAKxwZW/kI=
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
+github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf h1:WfD7VjIE6z8dIvMsI4/s+1qr5EL+zoIGev1BQj1eoJ8=
+github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf/go.mod h1:hyb9oH7vZsitZCiBt0ZvifOrB+qc8PS5IiilCIb87rg=
 github.com/kbinani/screenshot v0.0.0-20180915023343-9cbbf14dec0a h1:JyLUYNnm0Tdij9bijN3NtCNcur8/5aeaMOYS5VE4x3U=
 github.com/kbinani/screenshot v0.0.0-20180915023343-9cbbf14dec0a/go.mod h1:f8GY5V3lRzakvEyr49P7hHRYoHtPr8zvj/7JodCoRzw=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=

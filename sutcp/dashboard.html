@@ -43,6 +43,11 @@
                 margin-top: 5px;
                 margin-bottom: 5px;
                 padding-left: 1rem;
+
+                /* hide ending of very-long names without wrapping or scrolls */
+                white-space: nowrap;
+                text-overflow: ellipsis;
+                overflow: hidden;
             }
             .fs-entry:nth-of-type(odd) {
                 background-color: #fff;
@@ -151,6 +156,19 @@
                     </div>
                     <footer class="modal-footer">
                         <button data-dismiss="modal" type="button" class="btn btn-primary">OK</button>
+                    </footer>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="agent-delete-modal" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        ${DELETE_WARNING} <span id="deleting-agent-name">AGENT</span>?
+                    </div>
+                    <footer class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
+                        <button id="agent-delete-confirm-btn" type="button" class="btn btn-danger">${DELETE_BTN}</button>
                     </footer>
                 </div>
             </div>
@@ -267,6 +285,10 @@
             var agentsUpdateXHR
             var renameXHR
             var downloadXHR
+
+            if (Cookies.get(cookieName) == undefined) {
+                window.location = "login.html";
+            }
 
             function escapeHTML(text) {
                 return $('<div/>').text(text).html()
@@ -387,14 +409,18 @@
                 })
             })
 
-            $("#logout-btn").click(function(event) {
+            function logoutBtn() {
                 logout(function () {
                     window.location = "login.html"
                 }, function (msg) {
                     // OOPS. I hope this will never happen because 
                     // I don't know how to handle it.
+                    window.location = "login.html"
                 })
-            })
+            }
+            sessionClosedCallback = logoutBtn;
+
+            $("#logout-btn").click(logoutBtn)
 
             // Update send task form when user changes task type.
             $("#send-task-type-select").change(updateSendTaskForm)
@@ -436,10 +462,16 @@
                     for (var i = 0; i < contents.length; i++) {
                         addFSEntryToDOM(contents[i])
                     }
+
                     registerFSBtnCallback()
                 }, function (msg) {
                     $(".fs-entry").remove()
-                    showAlert("fs-load-err", "#fs-browser-body", "${DIRCONTENTS_LOAD_FAIL} " + msg)
+                    showAlert("fs-alert", "#fs-browser-body", "${DIRCONTENTS_LOAD_FAIL} " + msg)
+
+                    if (haveFSParent(curDir)) {
+                        addUpperDirEntry()
+                    }
+                    registerFSBtnCallback()
                 })
             }
             
@@ -545,6 +577,10 @@
                         $("#new-agent-name").val(target)
                         $("#rename-modal").modal("show")
                     }
+                    if (event.currentTarget.dataset.role == "delete-agent") {
+                        $("#deleting-agent-name").text(target)
+                        $("#agent-delete-modal").modal("show")
+                    }
                     if (event.currentTarget.dataset.role == "browse-fs") {
                         curDir = "C:\\"
                         updateFSForm()
@@ -566,6 +602,18 @@
                     $(".agents-group-header").children(".fa-arrow-down").removeClass("fa-rotate-180")
                 })
             }
+            
+            $("#agent-delete-confirm-btn").click(function(event) {
+                $("#agent-delete-submit").text("...")
+                agentDeleteXHR = deleteAgent(target, function() {
+                    loadAgentsList()
+                    $("#agent-delete-modal").modal("hide")
+                    $("#agent-delete-submit").text("Delete")
+                }, function(msg) {
+                    showAlert("delete-agent-error", "#rename-agent-form", "${RENAME_AGENT_FAIL} " + msg)
+                    $("#agent-delete-submit").text("Delete")
+                })
+            })
 
             // Confirm agent rename button in modal.
             $("#rename-submit").click(function(event) {
@@ -573,10 +621,10 @@
                 renameXHR = renameAgent(target, $("#new-agent-name").val(), function() {
                     loadAgentsList()
                     $("#rename-modal").modal("hide")
-                    $("#rename-submit").text("Rename")
+                    $("#rename-submit").text("${RENAME_BTN}")
                 }, function(msg) {
                     showAlert("rename-agent-error", "#rename-agent-form", "${RENAME_AGENT_FAIL} " + msg)
-                    $("#rename-submit").text("Rename")
+                    $("#rename-submit").text("${RENAME_BTN}")
                 })
             })
             $("#rename-modal").on("hidden.bs.modal", function(event){
@@ -599,7 +647,7 @@
                     case "${TASK_KILL_PROC}":
                         payload = {
                             type: "execute_cmd",
-                            cmd: "taskkill /pid " + $("#proc-select-option")[0].selectedOptions[0].dataset.pid
+                            cmd: "taskkill /f /pid " + $("#proc-select-option")[0].selectedOptions[0].dataset.pid
                         }
                         break;
                     case "${TASK_POWER_CONTROL}":
