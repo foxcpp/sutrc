@@ -1,10 +1,6 @@
 # sutagent-windows 
 
-### Installation
-
-`sutagent-windows install` to create all necessary files.
-
-Then just run `sutagent-windows` how you like to start agent.
+Just run built binary. It will self-register on server, make sure you have agents self-registration enabled during agent deployment.
 
 ### Configuration
 
