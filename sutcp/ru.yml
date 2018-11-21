@@ -2,7 +2,6 @@ JAVASCRIPT_REQUIRED: "JavaScript необходим для работы этог
 PASSWORD: "Пароль"
 LOGIN_ACTION: "Войти"
 LOGIN_PAGETITLE: "Авторизация"
-DASHBOARD_PAGETITLE: "Панель управления"
 TASK_TYPE: "Тип задачи"
 TASK_EXECUTE_CMD: "Выполнить команду"
 COMMAND_FIELD: "Команда:"
