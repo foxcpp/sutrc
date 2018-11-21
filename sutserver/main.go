@@ -253,15 +253,19 @@ func removeAgentQueues(id string) {
 }
 
 func agentSelfreg(w http.ResponseWriter, r *http.Request) {
-	if !agentsSelfregEnabled {
-		writeError(w, http.StatusMethodNotAllowed, "Agents self-registration is disabled")
-		return
-	}
-
 	name := r.URL.Query().Get("name")
 	hwid := r.URL.Query().Get("hwid")
 	if name == "" || hwid == "" {
 		writeError(w, http.StatusBadRequest, "Pass 'name' and 'hwid' in query string")
+		return
+	}
+
+	if db.CheckAgentAuth(hwid) {
+		return
+	}
+
+	if !agentsSelfregEnabled {
+		writeError(w, http.StatusMethodNotAllowed, "Agents self-registration is disabled")
 		return
 	}
 

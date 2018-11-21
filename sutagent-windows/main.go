@@ -24,10 +24,8 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/denisbrodbeck/machineid"
@@ -54,47 +52,23 @@ var baseURL string
 var apiURL = baseURL + "/api"
 
 func main() {
-	if len(os.Args) >= 2 {
-		cmd := strings.ToLower(os.Args[1])
-		switch cmd {
-		case "debug":
-			break
-		case "install":
-			fmt.Println("Installing service")
-			hostname, err := os.Hostname()
-			if err != nil {
-				log.Fatalf("failed to get hostname: %v", err)
-			}
-			fmt.Println("Hostname:", hostname)
-			// Generating a fingerprint for this machine
-			// ID parameter is passed with install command
-			mid, err := machineid.ProtectedID(hostname)
-			if err != nil {
-				log.Fatalf("failed generating machine ID: %s", err)
-			}
-			fmt.Println("HWID:", mid)
-			err = ioutil.WriteFile("C:\\Windows\\sutpc.key", []byte(mid), 0640)
-			if err != nil {
-				log.Fatalf("failed to save a key for this PC: %s", err)
-			}
-			fmt.Println("Trying to register client")
-			client := agent.NewClient(apiURL)
-			if err := client.RegisterAgent(hostname, mid); err != nil {
-				log.Fatalf("failed to register on central server: %s", err)
-			}
-			return
-		default:
-			usage(fmt.Sprintf("invalid command %s", cmd))
-		}
+	client := agent.NewClient(apiURL)
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatalln("Gailed to get hostname:", err)
+	}
+	fmt.Println("Hostname:", hostname)
+
+	// Generating a fingerprint for this machine
+	hwid, err := machineid.ProtectedID(hostname)
+
+	if err := client.RegisterAgent(hostname, hwid); err != nil {
+		log.Fatalf("failed to register on central server: %s", err)
 	}
 
-	hwid, err := ioutil.ReadFile("C:\\Windows\\sutpc.key")
-	if err != nil {
-		log.Fatalln("Failed to read authorization key:", err)
-	}
 	log.Println("Starting longpolling")
 
-	client := agent.NewClient(apiURL)
 	client.SupportedTaskTypes = []string{
 		"execute_cmd",
 		"proclist",
