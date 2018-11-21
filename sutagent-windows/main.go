@@ -62,7 +62,7 @@ func main() {
 
 	// Generating a fingerprint for this machine
 	// In the use case of sutrc, we must handle somehow possible reinstallation
-	// of systems using pre-made special image that do not change the real HWID in Windows OS.
+	// of systems using pre-made special image that do not change the real HWID in Windows.
 	// Therefore, somehow we must change the real key we use for identifying machine while
 	// NOT messing with HWID (just because that's harder than you think in real conditions).
 	// And it is guaranteed that university computer will have a unique hostname set after
@@ -70,8 +70,6 @@ func main() {
 	// sides and uses it as a machine fingerprint.
 	hwid, err := machineid.ProtectedID(hostname)
 
-	// This block also needs some explanation:
-	//
 	// The sutrc protocol enforces agent registration. This creates some obvious stage of
 	// "agent installation", which will probably never be executed in some cases (ops error).
 	// At the same time, there is nothing more about this process except agent registration.
@@ -80,11 +78,10 @@ func main() {
 	// to keep agent running if self-registration is actually disabled and agent is (was) not
 	// registered.
 	//
-	// Looking at case described in previous comment block, you may wonder what happen if first
-	// launch happens and same hostname and hwid happens to appear twice. The answer is, they
-	// will both start polling tasks. But this is not even considered a bug: immediately after
-	// installation, the hostname WILL be changed and after reboot agent will function normally,
-	// with new, unique HWID passed to this function.
+	// Looking at HWID issue from previous comment block, it is obvious that after the first
+	// launch there will be duplicated hostname and hwid in a sutrc network. This is not even
+	// considered a bug. Immediately after installation, the hostname will be changed and after
+	// reboot agent will be functioning properly, with new, unique HWID passed to this function.
 	// HWID must not be duplicated in real life. This is bad, very bad and not even sutrc's problem.
 	if err := client.RegisterAgent(hostname, hwid); err != nil {
 		log.Fatalf("failed to register on central server: %s", err)
