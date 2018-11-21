@@ -61,8 +61,31 @@ func main() {
 	fmt.Println("Hostname:", hostname)
 
 	// Generating a fingerprint for this machine
+	// In the use case of sutrc, we must handle somehow possible reinstallation
+	// of systems using pre-made special image that do not change the real HWID in Windows OS.
+	// Therefore, somehow we must change the real key we use for identifying machine while
+	// NOT messing with HWID (just because that's harder than you think in real conditions).
+	// And it is guaranteed that university computer will have a unique hostname set after
+	// first launch. This function uses hostname and HWID to get something unique from both
+	// sides and uses it as a machine fingerprint.
 	hwid, err := machineid.ProtectedID(hostname)
 
+	// This block also needs some explanation:
+	//
+	// The sutrc protocol enforces agent registration. This creates some obvious stage of
+	// "agent installation", which will probably never be executed in some cases (ops error).
+	// At the same time, there is nothing more about this process except agent registration.
+	// While this is true, it is also true that current server behaviour returns 200 OK if HWID
+	// was already registered, even if self-registration is disabled. Also, there is no reason
+	// to keep agent running if self-registration is actually disabled and agent is (was) not
+	// registered.
+	//
+	// Looking at case described in previous comment block, you may wonder what happen if first
+	// launch happens and same hostname and hwid happens to appear twice. The answer is, they
+	// will both start polling tasks. But this is not even considered a bug: immediately after
+	// installation, the hostname WILL be changed and after reboot agent will function normally,
+	// with new, unique HWID passed to this function.
+	// HWID must not be duplicated in real life. This is bad, very bad and not even sutrc's problem.
 	if err := client.RegisterAgent(hostname, hwid); err != nil {
 		log.Fatalf("failed to register on central server: %s", err)
 	}
