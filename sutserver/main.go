@@ -31,6 +31,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sort"
 	"sync"
 	"syscall"
 
@@ -275,6 +276,26 @@ func agentSelfreg(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// StringSlice is a sort.Interface implementation that considers longer strings
+// to be "bigger", which makes comparsion work just like numeric comparsion
+// when string consists of numbers.
+type StringSlice []string
+
+func (s StringSlice) Len() int {
+	return len(s)
+}
+
+func (s StringSlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s StringSlice) Less(i, j int) bool {
+	if len(s[i]) != len(s[j]) {
+		return len(s[i]) < len(s[j])
+	}
+	return s[i] < s[j]
+}
+
 func agentListHandler(w http.ResponseWriter, r *http.Request) {
 	if !checkAdminAuth(r.Header) {
 		writeError(w, http.StatusForbidden, "Authorization failure")
@@ -286,6 +307,7 @@ func agentListHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	sort.Sort(StringSlice(agents))
 
 	// We want to include all known agents, not just seen active since server startup.
 	onlineAgentsL := make(map[string]bool)
