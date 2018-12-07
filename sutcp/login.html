@@ -44,11 +44,11 @@
         </style>
     </head>
     <body>
-        <main class="login-form">
+        <form class="login-form">
             <input id="token" type="password" class="form-element form-control" placeholder="${PASSWORD}">
             <span class="form-note">SUT Control Panel 1.0-rc2</span>
-            <button id="login-btn" class="clearfix form-element form-button btn btn-primary">${LOGIN_ACTION}</button>
-        </main>
+            <button type="submit" id="login-btn" class="clearfix form-element form-button btn btn-primary">${LOGIN_ACTION}</button>
+        </form>
 
         <script src="js/jquery-3.3.1.min.js"></script>
         <script src="js/popper.min.js"></script>
@@ -80,6 +80,7 @@
                     showAlert("login-err-alert", ".login-form", "Failed to login: " + msg)
                     $("#login-btn").text("Login")
                 })
+                event.preventDefault()
             })
         </script>
     </body>
