@@ -13,6 +13,20 @@
             .navbar {
                 background-color: #eee;
             }
+            .carousel-control-next,.carousel-control-prev {
+                transition: all 0.45s;
+                background-color: #eaeaea;
+                max-width: 100px;
+                color: #222222;
+            }
+            .carousel-control-next:hover,.carousel-control-prev:hover {
+                color: #222222;
+                background-color: #d0d0d0;
+            }
+            .carousel-inner {
+                padding: 1rem;
+            }
+
             .agent-entry {
                 margin-top: 5px;
                 margin-bottom: 5px;
@@ -137,12 +151,12 @@
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <header class="modal-header">
-                        <h5>${TASK_RESULT_TITLE}</h5>
+                        <h5>${TASK_RESULT_TITLE} <span id="task-result-title-suffix"></span></h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </header>
-                    <div class="modal-body">
+                    <div class="modal-body" id="result-container">
                         <div id="single-result">
                             ${STATUS_LABEL} <span id="result-status-code">???</span>
                             <pre id="result-output">
@@ -697,6 +711,7 @@
                 $("#screenshot-result").hide()
                 $("#single-result").show()
                 $("#result-modal").children(".modal-dialog").css("max-width", "500px")
+                $("#task-result-title-suffix").text("")
 
                 var status
                 var output
@@ -733,11 +748,9 @@
 
             function showTaskBroadcastResult(result, type) {
                 // #single-result is formatted a bit differently and we use #broadcast-result for broadcasts instead.
-                $("#single-result").hide()
-                $("#screenshot-result").hide()
-                $("#broadcast-result").show()
-                
-                $("#broadcast-result").children().remove()
+                prepareBroadcastContainer(type == "screenshot")
+                $("#task-result-title-suffix").text("")
+
                 var res = result.results
                 for (var i = 0; i < res.length; i++) {
                     var resContents
@@ -752,7 +765,8 @@
                         case "screenshot":
                             $("#result-modal").children(".modal-dialog").css("max-width", "100%")
                             var imgurl = result.results[0].url    
-                            resContents = '<a href="' + imgurl + '"><img class="screenshot-img" src="' + imgurl + '" /></a>'
+                            resContents = '<a href="' + imgurl + '"><img class="d-block screenshot-img" src="' + imgurl + '" /></a>'
+                            $("#task-result-title-suffix").text("(" + $(".carousel-item:first").data("label") + ")")
                             break
                         case "update":
                             $("#result-modal").children(".modal-dialog").css("max-width", "500px")
@@ -760,11 +774,17 @@
                             break
                         }
                     }
-                    
-                    $("#broadcast-result").append('<b>' + res[i].target + '</b><div>' + resContents + '</div>')
+
+                    addBroadcastResult(res[i].target, resContents)
                 }
                 $(".modal").modal("hide")
                 $("#result-modal").modal("show")
+            }
+
+            function registerCarouselHandlers() {
+                $("#result-carousel").on("slid.bs.carousel", function (event) {
+                    $("#task-result-title-suffix").text("(" + $(event.relatedTarget).data("label") + ")")
+                })
             }
         </script>
     </body>

@@ -214,3 +214,47 @@ function addFSEntryToDOM(entry) {
                             </span>\
                         </div>')
 }
+
+function prepareBroadcastContainer(carousel) {
+    $("#single-result").hide()
+    $("#screenshot-result").hide()
+    $("#broadcast-result").children().remove()
+    $("#broadcast-result").show()
+    $("#broadcast-result").attr("carousel", carousel)
+
+    // Insert carousel skeleton.
+    if (carousel) {
+        $("#broadcast-result").append('\
+            <div id="result-carousel" class="carousel" data-interval="false">\
+                <div class="carousel-inner">\
+                </div>\
+                <a class="carousel-control-prev" href="#result-carousel" role="button" data-slide="prev">\
+                    <span class="fas fa-arrow-left" aria-hidden="true"></span>\
+                    <span class="sr-only">Previous</span>\
+                </a>\
+                <a class="carousel-control-next" href="#result-carousel" role="button" data-slide="next">\
+                    <span class="fas fa-arrow-right" aria-hidden="true"></span>\
+                    <span class="sr-only">Next</span>\
+                </a>\
+            </div>')
+        $("#result-container").attr("style", "padding: 0;")
+        registerCarouselHandlers()
+    } else {
+        $("#result-container").removeAttr("style")
+    }
+}
+
+function addBroadcastResult(label, contents) {
+    var carousel = $("#broadcast-result").attr("carousel") == "true"
+    if (carousel) {
+        console.log("carousel attr")
+        $("#result-carousel").children(".carousel-inner").append('<div data-label="' + label + '" class="carousel-item">' + contents + '</div>')
+
+        var first = $(".carousel-item:first")
+        if (!first.hasClass("active")) {
+            first.addClass("active")
+        }
+    } else {
+        $("#broadcast-result").append('<b>' + label + '</b><div>' + contents + '</div>')
+    }
+}
