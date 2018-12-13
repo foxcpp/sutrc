@@ -764,7 +764,8 @@
                             break
                         case "screenshot":
                             $("#result-modal").children(".modal-dialog").css("max-width", "100%")
-                            var imgurl = result.results[0].url    
+                            var imgurl
+                            imgurl = res[i].url
                             resContents = '<a href="' + imgurl + '"><img class="d-block screenshot-img" src="' + imgurl + '" /></a>'
                             $("#task-result-title-suffix").text("(" + $(".carousel-item:first").data("label") + ")")
                             break
