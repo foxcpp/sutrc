@@ -87,7 +87,19 @@
                 bottom: 29px; /* negative value of footer height */
                 height: 10px;
                 clear: both;
-            }            
+            }
+
+            .modal-body {
+                max-height: 100%;
+                overflow-y: auto;
+            }
+            .modal-dialog {
+                overflow-y: initial !important;
+                height: 95vh;
+            }
+            .modal-content {
+                max-height: 100%;
+            }
         </style>
     </head>
     <body>
