@@ -45,8 +45,7 @@ func usage(errmsg string) {
 
 const svcname = "sutagent"
 const dispName = "State University of Telecommunications Remote Control Service Agent"
-const description = "Implements remote control functionality and performs background longpolling, " +
-	"."
+const description = "Implements remote control functionality and performs background longpolling, "
 
 var baseURL string
 var apiURL = baseURL + "/api"
