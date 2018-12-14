@@ -755,12 +755,12 @@
                 for (var i = 0; i < res.length; i++) {
                     var resContents
                     if (res[i].error) {
-                        resContents = 'Status: <span>${STATUS_ERROR_AGENT}</span><pre>' + res[i].msg + '</pre>'
+                        resContents = 'Status: <span>${STATUS_ERROR_AGENT}</span><pre>' + escapeHTML(res[i].msg) + '</pre>'
                     } else {
                         switch (type) {
                         case "execute_cmd":
                             $("#result-modal").children(".modal-dialog").css("max-width", "500px")
-                            resContents = 'Status: <span>' + res[i].status_code + '</span><pre>' + res[i].output + '</pre>'
+                            resContents = 'Status: <span>' + res[i].status_code + '</span><pre>' + escapeHTML(res[i].output) + '</pre>'
                             break
                         case "screenshot":
                             $("#result-modal").children(".modal-dialog").css("max-width", "100%")
