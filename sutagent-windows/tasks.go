@@ -164,7 +164,7 @@ func screenshotTask(client *agent.Client, taskID int, _ map[string]interface{}) 
 	rdr, wtr := io.Pipe()
 	go func() {
 		jpeg.Encode(wtr, img, &jpeg.Options{
-			Quality: 50,
+			Quality: 75,
 		})
 		png.Encode(wtr, img)
 		wtr.Close()
