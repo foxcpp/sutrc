@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/denisbrodbeck/machineid"
@@ -45,13 +46,29 @@ func usage(errmsg string) {
 
 const svcname = "sutagent"
 const dispName = "State University of Telecommunications Remote Control Service Agent"
-const description = "Implements remote control functionality and performs background longpolling, " +
-	"."
+const description = "Implements remote control functionality and performs background longpolling, "
 
 var baseURL string
 var apiURL = baseURL + "/api"
 
+func initLog() {
+	logDir := `C:\sutrc\logs`
+	if err := os.MkdirAll(logDir, os.ModePerm); err != nil {
+		log.Fatalln("Failed to create logs directory:", err)
+	}
+
+	logFilename := time.Now().Format("02.01.06_15.04.05.000.log")
+	f, err := os.Create(filepath.Join(logDir, logFilename))
+	if err != nil {
+		log.Fatalln("Failed to open log file for writting:", err)
+	}
+
+	log.SetOutput(f)
+}
+
 func main() {
+	initLog()
+
 	client := agent.NewClient(apiURL)
 
 	hostname, err := os.Hostname()
@@ -145,7 +162,7 @@ func main() {
 			// So basicallly we have to "hide" children from golang code by
 			// calling CreateProcess directly.
 
-			cmd, err := windows.UTF16PtrFromString(`C:\Windows\sutagent.exe`)
+			cmd, err := windows.UTF16PtrFromString(`C:\sutrc\sutagent.exe`)
 			if err != nil {
 				panic(err)
 			}
