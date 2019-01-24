@@ -32,8 +32,8 @@ import (
 	"time"
 )
 
-var taskResults map[string]map[int]chan map[string]interface{}
-var tasks map[string]chan map[string]interface{}
+var taskResults = make(map[string]map[int]chan map[string]interface{})
+var tasks = make(map[string]chan map[string]interface{})
 var nextTaskID = 1
 
 // Should be locked if any variables above (except channel I/O) are accessed.
@@ -45,11 +45,17 @@ func tasksResultHandler(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusForbidden, "Authorization failure")
 			return
 		}
+
 		agentID, err := db.GetAgentName(r.Header.Get("Authorization"))
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+
+		lastRequestStampLock.Lock()
+		lastRequestStamp[agentID] = time.Now()
+		lastRequestStampLock.Unlock()
+
 		id, err := strconv.Atoi(r.URL.Query().Get("id"))
 		if err != nil {
 			return
@@ -246,6 +252,10 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 		taskResults[agentID] = make(map[int]chan map[string]interface{})
 	}
 	taskMetaLock.Unlock()
+
+	lastRequestStampLock.Lock()
+	lastRequestStamp[agentID] = time.Now()
+	lastRequestStampLock.Unlock()
 
 	// We 'register' agent as online only if it listens for tasks.
 	// Agent is expected to handle them asynchronously so it will be
