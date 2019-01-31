@@ -33,6 +33,10 @@ import (
 )
 
 var taskResults = make(map[string]map[int]chan map[string]interface{})
+
+// tasks map stores queue of tasks per agent,
+// note that if there is empty map object - it should be ignored,
+// because it is used for "cancelled" tasks
 var tasks = make(map[string]chan map[string]interface{})
 var nextTaskID = 1
 
@@ -152,12 +156,13 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 
 	targets := strings.Split(targetsStr, ",")
 	responses := make([]map[string]interface{}, len(targets))
-	taskIds := make([]int, len(targets))
+	taskCopies := make([]map[string]interface{}, len(targets))
 	for i, target := range targets {
 		taskCpy := make(map[string]interface{})
 		for k, v := range task {
 			taskCpy[k] = v
 		}
+		taskCopies[i] = taskCpy
 
 		if !db.AgentExists(target) {
 			responses[i] = map[string]interface{}{"error": true, "msg": "Agent doesn't exists"}
@@ -178,7 +183,7 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 		// "Allocate" task ID.
 		id := nextTaskID
 		nextTaskID++
-		taskIds[i] = id
+		taskCopies[i]["id"] = id
 
 		// Prepare storage for result.
 		taskResults[target][id] = make(chan map[string]interface{})
@@ -205,7 +210,7 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 
 	for i, target := range targets {
 		if responses[i] == nil {
-			responses[i] = waitTaskResult(target, taskIds[i], r, timeout)
+			responses[i] = waitTaskResult(target, taskCopies[i], r, timeout)
 			responses[i]["target"] = target
 		}
 	}
@@ -213,7 +218,9 @@ func acceptTask(w http.ResponseWriter, r *http.Request) {
 	writeJson(w, map[string]interface{}{"error": false, "results": responses})
 }
 
-func waitTaskResult(agentID string, taskID int, r *http.Request, timeout time.Duration) map[string]interface{} {
+func waitTaskResult(agentID string, task map[string]interface{}, r *http.Request, timeout time.Duration) map[string]interface{} {
+	taskID := task["id"].(int)
+
 	taskMetaLock.Lock()
 	taskResChan := taskResults[agentID][taskID]
 	taskMetaLock.Unlock()
@@ -228,6 +235,11 @@ func waitTaskResult(agentID string, taskID int, r *http.Request, timeout time.Du
 		debugLog("Timed out while waiting for task", taskID, "result from", agentID)
 		taskMetaLock.Lock()
 		delete(taskResults[agentID], taskID)
+
+		// Mark task as cancelled by clearing it.
+		for k, _ := range task {
+			delete(task, k)
+		}
 		taskMetaLock.Unlock()
 		return map[string]interface{}{"error": true, "msg": "Time out while waiting for task result"}
 	}
@@ -251,6 +263,7 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	if _, prs := taskResults[agentID]; !prs {
 		taskResults[agentID] = make(map[int]chan map[string]interface{})
 	}
+	tasksChan := tasks[agentID]
 	taskMetaLock.Unlock()
 
 	lastRequestStampLock.Lock()
@@ -263,25 +276,30 @@ func tasksLongpool(w http.ResponseWriter, r *http.Request, timeout time.Duration
 	onlineAgentsLock.Lock()
 	onlineAgents[agentID] = true
 	onlineAgentsLock.Unlock()
+	defer func() {
+		onlineAgentsLock.Lock()
+		onlineAgents[agentID] = false
+		onlineAgentsLock.Unlock()
+	}()
 
 	debugLog(agentID, "is watching for tasks")
 
-	taskMetaLock.Lock()
-	tasksChan := tasks[agentID]
-	taskMetaLock.Unlock()
-
-	select {
-	case <-time.After(timeout):
-		writeJson(w, map[string]interface{}{})
-	case task, ok := <-tasksChan:
-		if !ok {
-			writeError(w, http.StatusForbidden, "Agent deregistered")
-			return
+	for {
+		select {
+		case <-time.After(timeout):
+			writeJson(w, map[string]interface{}{})
+		case task, ok := <-tasksChan:
+			if !ok {
+				writeError(w, http.StatusForbidden, "Agent deregistered")
+				return
+			}
+			// Ignore "cancelled" tasks.
+			if len(task) == 0 {
+				continue
+			}
+			debugLog("Sending task", task["id"].(int), "to", agentID)
+			writeJson(w, task)
 		}
-		debugLog("Sending task", task["id"].(int), "to", agentID)
-		writeJson(w, task)
+		return
 	}
-	onlineAgentsLock.Lock()
-	onlineAgents[agentID] = false
-	onlineAgentsLock.Unlock()
 }
