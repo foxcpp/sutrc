@@ -43,6 +43,9 @@
             .send-task-type-form {
                 padding-top: 5px;
             }
+            .agents-group-root {
+                margin-bottom: 5px;
+            }
             .agents-group {
                 padding-left: 25px;
             }
@@ -110,7 +113,10 @@
                 <span id="selfreg-status">Agents selfreg</span>    
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-disable">${SELFREG_DISABLE}</button> 
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-enable">${SELFREG_ENABLE}</button> 
-                <button type="button" id="logout-btn" class="btn btn-outline-secondary fas fa-sign-out-alt" aria-label="Refresh"></button>
+                <button type="button" id="logout-btn" class="btn btn-sm btn-outline-secondary" aria-label="Refresh">
+                    ${LOGOUT_ACTION}
+                    <span class="fas fa-sign-out-alt"></span>
+                </button>
             </span>
         </nav>
         <div class="modal fade" id="send-task-modal" role="dialog" aria-hidden="true">
@@ -191,7 +197,7 @@
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <div class="modal-body">
-                        ${DELETE_WARNING} <span id="deleting-agent-name">AGENT</span>?
+                        ${AGENT_DELETE_WARNING}
                     </div>
                     <footer class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
@@ -274,12 +280,16 @@
         <main class="container">
             <header class="twoheader">
                 <h3 class="twoheader-left">${AGENTS_LIST_TITLE}</h3>
+                <!--
+                This is only useful for debugging, but I will leave it here for this purposes.
+
                 <div class="twoheader-right">
                     <span style="color:#bbb">${AUTOUPDATE_NOTE}</span>
                     <button type="button" id="agents-reload-btn" class="twoheader-right btn btn-floating" aria-label="Refresh">
                         <span class="fas fa-sync-alt"></span>
                     </button>
                 </div>
+                -->
             </header>
             <div id="agentslist" class="accordion">
                 <noscript><p class="alert alert-danger">${JAVASCRIPT_REQUIRED}</p></noscript>
