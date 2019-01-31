@@ -118,7 +118,9 @@
                 <div class="modal-content">
                     <header class="modal-header">
                         <h5 id="send-task-modal-title" class="modal-title">AGENT-NAME</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <button id="submit-close-btn" type="button" class="close"
+                            data-dismiss="modal" aria-label="Close" data-toggle="tooltip"
+                            data-placement="top" title="${TASK_CANCEL_WARNING}">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </header>
@@ -153,7 +155,6 @@
                         </div>
                     </form>
                     <footer class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
                         <button id="send-task-submit" type="button" class="btn btn-primary">${SEND_BTN}</button>
                     </footer>
                 </div>
@@ -424,6 +425,9 @@
                 getSelfregStatus(updateSelfregBtns, function (err) {
                     console.log("Failed to get selfreg status: " + err)
                 })
+
+                $('[data-toggle="tooltip"]').tooltip()
+                $("#submit-close-btn").tooltip("disable")
             })
             $("#selfreg-enable").click(function (event) {
                 setSelfregStatus(1, updateSelfregBtns, function (err) {
@@ -694,6 +698,7 @@
                         }
                 }
                 $("#send-task-submit").text("${TASK_RESULT_WAIT}")
+                $("#submit-close-btn").tooltip("enable")
                 sendTaskXHR = submitTask(target, payload, function (result) {
                     if (broadcast) {
                         showTaskBroadcastResult(result, payload.type)
@@ -701,10 +706,12 @@
                         showTaskSendResult(result, payload.type)
                     }
                     $("#send-task-submit").text("${SEND_BTN}")
+                    $("#submit-close-btn").tooltip("disable")
                     sendTaskXHR = null
                 }, function(msg) {
                     showAlert("task-submit-error", "#send-task-form", "${SUBMIT_TASK_FAIL} " + msg)
                     $("#send-task-submit").text("${SEND_BTN}")
+                    $("#submit-close-btn").tooltip("disable")
                 })
             })
             $("#send-task-modal").on("hidden.bs.modal", function(event){
