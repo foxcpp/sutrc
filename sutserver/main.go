@@ -322,7 +322,7 @@ func agentListHandler(w http.ResponseWriter, r *http.Request) {
 		if !lastRequestStamp[agent].IsZero() {
 			// 28 seconds = longpolling interval + 2 seconds for possible delay
 			// due to agent lags.
-			onlineAgentsL[agent] = onlineAgents[agent] || (lastRequestStamp[agent].Sub(time.Now()) < 28*time.Second)
+			onlineAgentsL[agent] = onlineAgents[agent] || (time.Now().Sub(lastRequestStamp[agent]) < 28*time.Second)
 		} else {
 			onlineAgentsL[agent] = onlineAgents[agent]
 		}
