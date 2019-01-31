@@ -24,6 +24,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -33,16 +34,6 @@ import (
 	"github.com/foxcpp/sutrc/agent"
 	"golang.org/x/sys/windows"
 )
-
-func usage(errmsg string) {
-	fmt.Fprintf(os.Stderr,
-		"%s\n\n"+
-			"usage: %s <command>\n"+
-			"       where <command> is one of\n"+
-			"       install, remove, debug, start, stop.\n",
-		errmsg, os.Args[0])
-	os.Exit(2)
-}
 
 const svcname = "sutagent"
 const dispName = "State University of Telecommunications Remote Control Service Agent"
@@ -63,7 +54,7 @@ func initLog() {
 		log.Fatalln("Failed to open log file for writting:", err)
 	}
 
-	log.SetOutput(f)
+	log.SetOutput(io.MultiWriter(f, os.Stderr))
 }
 
 func main() {
