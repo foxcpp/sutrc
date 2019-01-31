@@ -27,7 +27,6 @@ import (
 	"image/png"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -218,7 +217,6 @@ func proclistTask(client *agent.Client, taskID int, _ map[string]interface{}) {
 func executeCmdTask(client *agent.Client, taskID int, body map[string]interface{}) {
 	dec := cmdEncoding.NewDecoder()
 
-	log.Println("Received execute_cmd task", body)
 	command, ok := body["cmd"].(string)
 	if !ok {
 		client.SendTaskResult(taskID, map[string]interface{}{"error": true, "msg": "cmd should be string"})
