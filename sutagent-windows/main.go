@@ -24,24 +24,16 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/foxcpp/sutrc/agent"
 	"golang.org/x/sys/windows"
 )
-
-func usage(errmsg string) {
-	fmt.Fprintf(os.Stderr,
-		"%s\n\n"+
-			"usage: %s <command>\n"+
-			"       where <command> is one of\n"+
-			"       install, remove, debug, start, stop.\n",
-		errmsg, os.Args[0])
-	os.Exit(2)
-}
 
 const svcname = "sutagent"
 const dispName = "State University of Telecommunications Remote Control Service Agent"
@@ -50,7 +42,24 @@ const description = "Implements remote control functionality and performs backgr
 var baseURL string
 var apiURL = baseURL + "/api"
 
+func initLog() {
+	logDir := `C:\sutrc\logs`
+	if err := os.MkdirAll(logDir, os.ModePerm); err != nil {
+		log.Fatalln("Failed to create logs directory:", err)
+	}
+
+	logFilename := time.Now().Format("02.01.06_15.04.05.000.log")
+	f, err := os.Create(filepath.Join(logDir, logFilename))
+	if err != nil {
+		log.Fatalln("Failed to open log file for writting:", err)
+	}
+
+	log.SetOutput(io.MultiWriter(f, os.Stderr))
+}
+
 func main() {
+	initLog()
+
 	client := agent.NewClient(apiURL)
 
 	hostname, err := os.Hostname()
@@ -144,7 +153,7 @@ func main() {
 			// So basicallly we have to "hide" children from golang code by
 			// calling CreateProcess directly.
 
-			cmd, err := windows.UTF16PtrFromString(`C:\Windows\sutagent.exe`)
+			cmd, err := windows.UTF16PtrFromString(`C:\sutrc\sutagent.exe`)
 			if err != nil {
 				panic(err)
 			}

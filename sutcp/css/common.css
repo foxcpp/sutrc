@@ -11,6 +11,9 @@ figure {
 .navbar-light {
     background-color: #fff;
 }
+.tooltip-inner {
+	border-radius: 0 !important;
+}
 .btn:hover, .btn:focus, .form-control:hover, .form-control:focus, .form-control:clicked {
     box-shadow: none !important;
 }

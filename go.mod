@@ -7,7 +7,7 @@ require (
 	github.com/gen2brain/shm v0.0.0-20180314170312-6c18ff7f8b90 // indirect
 	github.com/go-sql-driver/mysql v1.4.0
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
-	github.com/kbinani/screenshot v0.0.0-20180915023343-9cbbf14dec0a
+	github.com/kbinani/screenshot v0.0.0-20181208081317-762b39512ae8
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/lib/pq v1.0.0
 	github.com/lxn/win v0.0.0-20181011103406-d19d56ae2f2d // indirect

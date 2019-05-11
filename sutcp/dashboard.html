@@ -3,9 +3,9 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/solid.css" integrity="sha384-osqezT+30O6N/vsMqwW8Ch6wKlMofqueuia2H7fePy42uC05rm1G+BUPSd2iBSJL" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/fontawesome.css" integrity="sha384-BzCy2fixOYd0HObpx3GMefNqdbA7Qjcc91RgYeDjrHTIEXqiF00jKvgQG0+zY/7I" crossorigin="anonymous">
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <link rel="stylesheet" href="css/fontawesome.min.css">
+        <link rel="stylesheet" href="css/fontawesome-solid.min.css">
         <link rel="stylesheet" href="css/common.css">
         <title>SUT Control Panel - ${DASHBOARD_PAGETITLE}</title>
 
@@ -13,6 +13,20 @@
             .navbar {
                 background-color: #eee;
             }
+            .carousel-control-next,.carousel-control-prev {
+                transition: all 0.45s;
+                background-color: #eaeaea;
+                max-width: 100px;
+                color: #222222;
+            }
+            .carousel-control-next:hover,.carousel-control-prev:hover {
+                color: #222222;
+                background-color: #d0d0d0;
+            }
+            .carousel-inner {
+                padding: 1rem;
+            }
+
             .agent-entry {
                 margin-top: 5px;
                 margin-bottom: 5px;
@@ -28,6 +42,9 @@
             }
             .send-task-type-form {
                 padding-top: 5px;
+            }
+            .agents-group-root {
+                margin-bottom: 5px;
             }
             .agents-group {
                 padding-left: 25px;
@@ -73,7 +90,19 @@
                 bottom: 29px; /* negative value of footer height */
                 height: 10px;
                 clear: both;
-            }            
+            }
+
+            .modal-body {
+                max-height: 100%;
+                overflow-y: auto;
+            }
+            .modal-dialog {
+                overflow-y: initial !important;
+                height: 95vh;
+            }
+            .modal-content {
+                max-height: 100%;
+            }
         </style>
     </head>
     <body>
@@ -84,7 +113,10 @@
                 <span id="selfreg-status">Agents selfreg</span>    
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-disable">${SELFREG_DISABLE}</button> 
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="selfreg-enable">${SELFREG_ENABLE}</button> 
-                <button type="button" id="logout-btn" class="btn btn-outline-secondary fas fa-sign-out-alt" aria-label="Refresh"></button>
+                <button type="button" id="logout-btn" class="btn btn-sm btn-outline-secondary" aria-label="Refresh">
+                    ${LOGOUT_ACTION}
+                    <span class="fas fa-sign-out-alt"></span>
+                </button>
             </span>
         </nav>
         <div class="modal fade" id="send-task-modal" role="dialog" aria-hidden="true">
@@ -92,7 +124,9 @@
                 <div class="modal-content">
                     <header class="modal-header">
                         <h5 id="send-task-modal-title" class="modal-title">AGENT-NAME</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <button id="submit-close-btn" type="button" class="close"
+                            data-dismiss="modal" aria-label="Close" data-toggle="tooltip"
+                            data-placement="top" title="${TASK_CANCEL_WARNING}">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </header>
@@ -127,7 +161,6 @@
                         </div>
                     </form>
                     <footer class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
                         <button id="send-task-submit" type="button" class="btn btn-primary">${SEND_BTN}</button>
                     </footer>
                 </div>
@@ -137,12 +170,12 @@
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <header class="modal-header">
-                        <h5>${TASK_RESULT_TITLE}</h5>
+                        <h5>${TASK_RESULT_TITLE} <span id="task-result-title-suffix"></span></h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </header>
-                    <div class="modal-body">
+                    <div class="modal-body" id="result-container">
                         <div id="single-result">
                             ${STATUS_LABEL} <span id="result-status-code">???</span>
                             <pre id="result-output">
@@ -164,7 +197,7 @@
             <div class="modal-dialog modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <div class="modal-body">
-                        ${DELETE_WARNING} <span id="deleting-agent-name">AGENT</span>?
+                        ${AGENT_DELETE_WARNING}
                     </div>
                     <footer class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">${CANCEL_BTN}</button>
@@ -247,12 +280,16 @@
         <main class="container">
             <header class="twoheader">
                 <h3 class="twoheader-left">${AGENTS_LIST_TITLE}</h3>
+                <!--
+                This is only useful for debugging, but I will leave it here for this purposes.
+
                 <div class="twoheader-right">
                     <span style="color:#bbb">${AUTOUPDATE_NOTE}</span>
                     <button type="button" id="agents-reload-btn" class="twoheader-right btn btn-floating" aria-label="Refresh">
                         <span class="fas fa-sync-alt"></span>
                     </button>
                 </div>
+                -->
             </header>
             <div id="agentslist" class="accordion">
                 <noscript><p class="alert alert-danger">${JAVASCRIPT_REQUIRED}</p></noscript>
@@ -260,10 +297,11 @@
             </div>
         </main>
 
-        <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha384-tsQFqpEReu7ZLhBV2VZlAu7zcOV+rXbYlF2cqB8txI/8aZajjp4Bqd+V6D5IgvKT" crossorigin="anonymous"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
-        <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js" integrity="sha384-8kKqrPvADL3/ZYJGtcqeG+fveXaJxTaI7LF1/a9QGZpkRVZSurP858KKE6rtnLLs" crossorigin="anonymous"></script><Paste>
+        <script src="js/jquery-3.3.1.min.js"></script>
+        <script src="js/popper.min.js"></script>
+        <script src="js/bootstrap.min.js"></script>
+        <script src="js/js.cookie.js"></script>
+        
         <script src="js/sutserver.js"></script>
         <script src="js/sutcp.js"></script>
 
@@ -397,6 +435,9 @@
                 getSelfregStatus(updateSelfregBtns, function (err) {
                     console.log("Failed to get selfreg status: " + err)
                 })
+
+                $('[data-toggle="tooltip"]').tooltip()
+                $("#submit-close-btn").tooltip("disable")
             })
             $("#selfreg-enable").click(function (event) {
                 setSelfregStatus(1, updateSelfregBtns, function (err) {
@@ -667,6 +708,7 @@
                         }
                 }
                 $("#send-task-submit").text("${TASK_RESULT_WAIT}")
+                $("#submit-close-btn").tooltip("enable")
                 sendTaskXHR = submitTask(target, payload, function (result) {
                     if (broadcast) {
                         showTaskBroadcastResult(result, payload.type)
@@ -674,10 +716,12 @@
                         showTaskSendResult(result, payload.type)
                     }
                     $("#send-task-submit").text("${SEND_BTN}")
+                    $("#submit-close-btn").tooltip("disable")
                     sendTaskXHR = null
                 }, function(msg) {
                     showAlert("task-submit-error", "#send-task-form", "${SUBMIT_TASK_FAIL} " + msg)
                     $("#send-task-submit").text("${SEND_BTN}")
+                    $("#submit-close-btn").tooltip("disable")
                 })
             })
             $("#send-task-modal").on("hidden.bs.modal", function(event){
@@ -696,6 +740,7 @@
                 $("#screenshot-result").hide()
                 $("#single-result").show()
                 $("#result-modal").children(".modal-dialog").css("max-width", "500px")
+                $("#task-result-title-suffix").text("")
 
                 var status
                 var output
@@ -732,26 +777,26 @@
 
             function showTaskBroadcastResult(result, type) {
                 // #single-result is formatted a bit differently and we use #broadcast-result for broadcasts instead.
-                $("#single-result").hide()
-                $("#screenshot-result").hide()
-                $("#broadcast-result").show()
-                
-                $("#broadcast-result").children().remove()
+                prepareBroadcastContainer(type == "screenshot")
+                $("#task-result-title-suffix").text("")
+
                 var res = result.results
                 for (var i = 0; i < res.length; i++) {
                     var resContents
                     if (res[i].error) {
-                        resContents = 'Status: <span>${STATUS_ERROR_AGENT}</span><pre>' + res[i].msg + '</pre>'
+                        resContents = 'Status: <span>${STATUS_ERROR_AGENT}</span><pre>' + escapeHTML(res[i].msg) + '</pre>'
                     } else {
                         switch (type) {
                         case "execute_cmd":
                             $("#result-modal").children(".modal-dialog").css("max-width", "500px")
-                            resContents = 'Status: <span>' + res[i].status_code + '</span><pre>' + res[i].output + '</pre>'
+                            resContents = 'Status: <span>' + res[i].status_code + '</span><pre>' + escapeHTML(res[i].output) + '</pre>'
                             break
                         case "screenshot":
                             $("#result-modal").children(".modal-dialog").css("max-width", "100%")
-                            var imgurl = result.results[0].url    
-                            resContents = '<a href="' + imgurl + '"><img class="screenshot-img" src="' + imgurl + '" /></a>'
+                            var imgurl
+                            imgurl = res[i].url
+                            resContents = '<a href="' + imgurl + '"><img class="d-block screenshot-img" src="' + imgurl + '" /></a>'
+                            $("#task-result-title-suffix").text("(" + $(".carousel-item:first").data("label") + ")")
                             break
                         case "update":
                             $("#result-modal").children(".modal-dialog").css("max-width", "500px")
@@ -759,11 +804,17 @@
                             break
                         }
                     }
-                    
-                    $("#broadcast-result").append('<b>' + res[i].target + '</b><div>' + resContents + '</div>')
+
+                    addBroadcastResult(res[i].target, resContents)
                 }
                 $(".modal").modal("hide")
                 $("#result-modal").modal("show")
+            }
+
+            function registerCarouselHandlers() {
+                $("#result-carousel").on("slid.bs.carousel", function (event) {
+                    $("#task-result-title-suffix").text("(" + $(event.relatedTarget).data("label") + ")")
+                })
             }
         </script>
     </body>

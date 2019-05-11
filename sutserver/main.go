@@ -31,8 +31,10 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sort"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/foxcpp/filedrop"
 	"gopkg.in/yaml.v2"
@@ -42,8 +44,10 @@ const PathPrefix = "/sutrc/api"
 
 var db *DB
 var agentsSelfregEnabled = false
-var onlineAgents map[string]bool
+var onlineAgents = make(map[string]bool)
 var onlineAgentsLock sync.Mutex
+var lastRequestStamp = make(map[string]time.Time)
+var lastRequestStampLock sync.Mutex
 
 func main() {
 	if len(os.Args) == 1 {
@@ -117,10 +121,6 @@ func serverSubcommand() {
 	conf.Filedrop.DB.DSN = conf.DB.DSN
 	filedropSrv := startFiledrop(conf.Filedrop)
 	defer filedropSrv.Close()
-
-	onlineAgents = make(map[string]bool)
-	taskResults = make(map[string]map[int]chan map[string]interface{})
-	tasks = make(map[string]chan map[string]interface{})
 
 	http.HandleFunc(PathPrefix+"/tasks", tasksHandler)
 	http.HandleFunc(PathPrefix+"/task_result", tasksResultHandler)
@@ -247,6 +247,10 @@ func removeAgentQueues(id string) {
 	delete(tasks, id)
 	taskMetaLock.Unlock()
 
+	lastRequestStampLock.Lock()
+	delete(lastRequestStamp, id)
+	lastRequestStampLock.Unlock()
+
 	onlineAgentsLock.Lock()
 	delete(onlineAgents, id)
 	onlineAgentsLock.Unlock()
@@ -275,6 +279,26 @@ func agentSelfreg(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// StringSlice is a sort.Interface implementation that considers longer strings
+// to be "bigger", which makes comparsion work just like numeric comparsion
+// when string consists of numbers.
+type StringSlice []string
+
+func (s StringSlice) Len() int {
+	return len(s)
+}
+
+func (s StringSlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s StringSlice) Less(i, j int) bool {
+	if len(s[i]) != len(s[j]) {
+		return len(s[i]) < len(s[j])
+	}
+	return s[i] < s[j]
+}
+
 func agentListHandler(w http.ResponseWriter, r *http.Request) {
 	if !checkAdminAuth(r.Header) {
 		writeError(w, http.StatusForbidden, "Authorization failure")
@@ -286,11 +310,22 @@ func agentListHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	sort.Sort(StringSlice(agents))
 
-	// We want to include all known agents, not just seen active since server startup.
+	lastRequestStampLock.Lock()
+	onlineAgentsLock.Lock()
+	defer lastRequestStampLock.Unlock()
+	defer onlineAgentsLock.Unlock()
+
 	onlineAgentsL := make(map[string]bool)
 	for _, agent := range agents {
-		onlineAgentsL[agent] = onlineAgents[agent]
+		if !lastRequestStamp[agent].IsZero() {
+			// 28 seconds = longpolling interval + 2 seconds for possible delay
+			// due to agent lags.
+			onlineAgentsL[agent] = onlineAgents[agent] || (time.Now().Sub(lastRequestStamp[agent]) < 28*time.Second)
+		} else {
+			onlineAgentsL[agent] = onlineAgents[agent]
+		}
 	}
 
 	writeJson(w, map[string]interface{}{"error": false, "agents": agents, "online": onlineAgentsL})
@@ -324,6 +359,11 @@ func renameAgentHandler(w http.ResponseWriter, r *http.Request) {
 	tasks[newId] = tasks[oldId]
 	delete(tasks, oldId)
 	taskMetaLock.Unlock()
+
+	lastRequestStampLock.Lock()
+	lastRequestStamp[newId] = lastRequestStamp[oldId]
+	delete(lastRequestStamp, oldId)
+	lastRequestStampLock.Unlock()
 
 	onlineAgentsLock.Lock()
 	onlineAgents[newId] = onlineAgents[oldId]
